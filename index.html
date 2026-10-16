@@ -91,7 +91,7 @@ header .sub{color:var(--muted);font-size:14px}
 .bs-order span.now{opacity:1;outline:3px solid var(--accent)}
 .bs-order span.done{opacity:.3}
 .bs-order span.ghost{text-decoration:line-through;opacity:.3}
-.grid{display:grid;grid-template-columns:2.2em repeat(5,minmax(0,1fr));gap:6px;width:100%;max-width:600px;margin:0 auto}
+.grid{display:grid;grid-template-columns:2.2em repeat(6,minmax(0,1fr));gap:6px;width:100%;max-width:660px;margin:0 auto}
 .grid .head{display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--muted);font-size:clamp(18px,2vw,24px)}
 .grid .cell{aspect-ratio:1;max-width:100%;border-radius:10px;background:#1d4e5a;font-family:var(--mono);font-weight:700;font-size:clamp(14px,1.8vw,20px);color:#b9d3d0;padding:0;display:flex;align-items:center;justify-content:center;position:relative;border:3px solid transparent}
 .grid .cell:disabled{cursor:default}
@@ -117,6 +117,7 @@ header .sub{color:var(--muted);font-size:14px}
 .bs-actions .ok{background:var(--ok);color:#06331a}
 .bs-actions .bad{background:var(--hit);color:#fff}
 .bs-actions .on{outline:3px solid var(--accent)}
+.bs-actions .steal{background:#6b4fa0;color:#fff}
 .bs-q .tag{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);font-weight:800;margin-bottom:6px}
 .bs-q.gold{background:#3b2f00;outline:3px solid var(--accent)}
 .bs-teams{display:flex;flex-direction:column;gap:8px}
@@ -294,7 +295,7 @@ header>div:first-child{flex:1 1 320px;min-width:0}
         <span class="confirm" id="bsNewWrap"><button id="bsNew">Nova partida</button></span>
         <button id="shipPeek" class="ghost teacher">Espiar tabuleiro</button>
       </div>
-      <div class="note"><b>Resumo:</b> o time escolhe uma casa (ex.: B4), o app revela o que havia ali e mostra a pergunta. Toda resposta tem consequência. Safe: acertou +1, errou −1. Bomba na água 💣: acertou +1 e atira no navio de outro time, errou e a bomba explode no próprio navio. Navio adversário: acertou +1 e ganha uma bomba, errou −1. Próprio navio: acertou +1 e ganha um escudo 🛡️, errou e essa parte é destruída. Fantasma roubando: acertou +1, errou −1. Afundar um navio adversário: +1. Navio afundado vai para a Gold Mine: acertou, ganha um bote; errou, vira fantasma 👻. Um time não leva duas bombas seguidas sem jogar antes.</div>
+      <div class="note"><b>Resumo:</b> o time escolhe uma casa (ex.: B4), o app revela o que havia ali e mostra a pergunta. Toda resposta tem consequência. Safe: acertou +1, errou −1. Bomba na água 💣: acertou +1 e atira no navio de outro time, errou e a bomba explode no próprio navio. Navio adversário: acertou +1 e ganha uma bomba, errou −1. Próprio navio: acertou +1 e ganha um escudo 🛡️, errou e essa parte é destruída. Fantasma roubando (botão STEAL! aparece em toda pergunta): acertou +1, errou −1. Recusar uma bomba nova: +3. Bomba sem alvo vai para o inventário 💣 e pode ser usada depois de um acerto, 1 por rodada. A partida só acaba quando todas as casas forem abertas. Afundar um navio adversário: +1. Navio afundado vai para a Gold Mine: acertou, ganha um bote; errou, vira fantasma 👻. Um time não leva duas bombas seguidas sem jogar antes.</div>
       <div class="teacher teacher-box">
         <div class="small muted" id="bsDeckInfo"></div>
         <label for="bsEList">Fáceis da partida escolhida: saem em casa de água (pergunta | resposta)</label>
@@ -545,7 +546,9 @@ const EX_SKIP="A H I J K L Q U V W X Y Z";
 const EX_BINGO="red\nblue\ngreen\nyellow\norange\npink\npurple\nblack\nwhite\nbrown\npen\npencil\neraser\nruler\nbook\nbag\ndesk\nnotebook\npaper\npencil case\nball\ndoll\ncar\nkite\nplane\ntrain\nbike\nrobot\nmonster\nteddy bear\ngo-kart\ncomputer game\ncat\ndog\nduck\ndonkey\nelephant\nfrog\nlizard\nrat\nspider\nsnake\napple\nbanana\ncarrot\ncheese\nchicken\ncake\npizza\npeas\nsausage\nsandwich\nmilk";
 const EX_HANG="pencil | school material\neraser | school material\nruler | school material\nnotebook | school material\npencil case | school material\ndesk | school material\npurple | color\norange | color\nyellow | color\neleven | number\ntwelve | number\ntwenty | number\nkite | toy\ndoll | toy\ntrain | toy\nplane | toy\nmonster | toy\nrobot | toy\nteddy bear | toy\ngo-kart | toy\ncomputer game | toy\nfrog | animal\nlizard | animal\nspider | animal\nelephant | animal\ndonkey | animal\nduck | animal\nsnake | animal\nbutterfly | animal\nbanana | food\napple | food\nsandwich | food\ncheese | food\ncarrot | food\npizza | food\nsausage | food\nmilk | food";
 /* Banco da Batalha Naval: 2 partidas (16 fáceis, 16 médias e 5 Gold Mines cada), enviado pelo Lucas; inglês americano. */
-const EX_BSSETS=[{"easy": "How do you say \"4\" in English? | Four.\nHow do you say \"9\" in English? | Nine.\nWhat number comes after six? | Seven.\nWhat number comes before ten? | Nine.\nSpell \"BLUE\". | B – L – U – E.\nSpell \"PEN\". | P – E – N.\nSpell \"BOOK\". | B – O – O – K.\nHow do you say \"régua\" in English? | Ruler.\nHow do you say \"lápis\" in English? | Pencil.\nHow do you say \"boneca\" in English? | Doll.\nHow do you say \"trem\" in English? | Train.\nHow do you say \"gato\" in English? | Cat.\nHow do you say \"cachorro\" in English? | Dog.\nHow do you say \"vermelho\" in English? | Red.\nHow do you say \"amarelo\" in English? | Yellow.\nWhat's your name? | My name is… / I'm…", "med": "What is three plus five? Answer in English. | Eight.\nWhat is ten minus four? Answer in English. | Six.\nSpell \"TRAIN\". | T – R – A – I – N.\nSpell \"PENCIL\". | P – E – N – C – I – L.\nSpell \"RULER\". | R – U – L – E – R.\nTranslate: \"uma bola grande\". | A big ball.\nTranslate: \"um trem comprido\". | A long train.\nTranslate: \"uma boneca bonita\". | A beautiful doll.\nBen is a boy. Complete: \"What's ___ favorite toy?\" | His.\nLucy is a girl. Complete: \"What's ___ favorite toy?\" | Her.\nI show you a book and ask: \"Is it a book?\" What do you answer? | Yes, it is.\nTranslate: \"Eu gosto de gatos.\" | I like cats.\nTranslate: \"Eu não gosto de aranhas.\" | I don't like spiders.\nTranslate: \"O sapo está dentro da bolsa.\" | The frog is in the bag.\nTranslate: \"O gato está embaixo da cadeira.\" | The cat is under the chair.\nTranslate: \"O livro está sobre a carteira.\" | The book is on the desk.", "gold": "Traduza: \"Meu nome é ___, eu tenho 11 anos e minha cor favorita é cinza.\" | My name is ___, I'm eleven years old and my favorite color is gray. | 15\nTraduza: \"Com licença, abra seu livro e passe-me uma régua, por favor.\" | Excuse me, open your book and pass me a ruler, please. | 20\nTraduza: \"Eu gosto de gatos e cachorros brancos. Eu não gosto de ratos marrons.\" | I like cats and white dogs. I don't like brown rats. | 25\nTraduza: \"O lagarto está embaixo da cadeira e a aranha está dentro da mochila.\" | The lizard is under the chair and the spider is in the bag. | 30\nTraduza: \"O brinquedo favorito dela é uma boneca rosa bonita e o brinquedo favorito dele é um carro vermelho novo.\" | Her favorite toy is a beautiful pink doll and his favorite toy is a new red car. | 50"}, {"easy": "How do you say \"2\" in English? | Two.\nHow do you say \"7\" in English? | Seven.\nWhat number comes after eight? | Nine.\nWhat number comes before five? | Four.\nSpell \"RED\". | R – E – D.\nSpell \"DOG\". | D – O – G.\nSpell \"CAT\". | C – A – T.\nHow do you say \"livro\" in English? | Book.\nHow do you say \"caneta\" in English? | Pen.\nHow do you say \"bola\" in English? | Ball.\nHow do you say \"aranha\" in English? | Spider.\nHow do you say \"rato\" in English? | Rat.\nHow do you say \"verde\" in English? | Green.\nHow do you say \"rosa\" in English? | Pink.\nHow do you say \"preto\" in English? | Black.\nHow do you say \"Abra seu livro\" in English? | Open your book.", "med": "What is four plus five? Answer in English. | Nine.\nWhat is nine minus six? Answer in English. | Three.\nWhat is two plus six? Answer in English. | Eight.\nSpell \"SPIDER\". | S – P – I – D – E – R.\nSpell \"DOLL\". | D – O – L – L.\nSpell \"YELLOW\". | Y – E – L – L – O – W.\nTranslate: \"uma bola pequena\". | A small ball.\nTranslate: \"um carro vermelho\". | A red car.\nTranslate: \"um cachorro preto\". | A black dog.\nTranslate: \"uma boneca rosa\". | A pink doll.\nTom is a boy. Complete: \"___ favorite color is blue.\" | His.\nAnna is a girl. Complete: \"___ favorite toy is a doll.\" | Her.\nTranslate: \"O rato está dentro da caixa.\" | The rat is in the box.\nTranslate: \"A aranha está sobre o livro.\" | The spider is on the book.\nTranslate: \"Eu gosto de cachorros brancos.\" | I like white dogs.\nTranslate: \"Eu não gosto de ratos.\" | I don't like rats.", "gold": "Traduza: \"Meu nome é Lucas, eu tenho oito anos e minha cor favorita é azul.\" | My name is Lucas, I'm eight years old and my favorite color is blue. | 15\nTraduza: \"Feche seu livro e passe-me um lápis e uma régua, por favor.\" | Close your book and pass me a pencil and a ruler, please. | 20\nTraduza: \"Eu gosto de gatos pretos e cachorros brancos, mas não gosto de aranhas.\" | I like black cats and white dogs, but I don't like spiders. | 25\nTraduza: \"O rato está embaixo da cadeira, o gato está sobre a carteira e o sapo está dentro da bolsa.\" | The rat is under the chair, the cat is on the desk and the frog is in the bag. | 30\nTraduza: \"O brinquedo favorito dela é uma boneca rosa pequena, o brinquedo favorito dele é um trem comprido e minha cor favorita é verde.\" | Her favorite toy is a small pink doll, his favorite toy is a long train and my favorite color is green. | 50"}];
+/* v15: perguntas novas (unidades 0 a 3) para o tabuleiro 6x6; quem já tinha o banco salvo recebe só as que faltam. */
+const BS_ADD=[{"easy": "How do you say \"3\" in English? | Three.\nHow do you say \"8\" in English? | Eight.\nWhat number comes after one? | Two.\nWhat number comes before four? | Three.\nSpell \"BALL\". | B – A – L – L.\nSpell \"BAG\". | B – A – G.\nHow do you say \"azul\" in English? | Blue.\nHow do you say \"laranja\" (a cor) in English? | Orange.\nHow do you say \"roxo\" in English? | Purple.\nHow do you say \"cadeira\" in English? | Chair.\nHow do you say \"carro\" in English? | Car.\nHow do you say \"pipa\" in English? | Kite.\nHow do you say \"sapo\" in English? | Frog.\nHow do you say \"peixe\" in English? | Fish.\nHow do you say \"Olá\" in English? | Hello. / Hi.\nHow do you say \"Sente-se\" in English? | Sit down.", "med": "What is two plus seven? Answer in English. | Nine.\nSpell \"LIZARD\". | L – I – Z – A – R – D.\nTranslate: \"um carro velho\". | An old car.\nTranslate: \"O sapo está embaixo da carteira.\" | The frog is under the desk."}, {"easy": "How do you say \"1\" in English? | One.\nHow do you say \"6\" in English? | Six.\nWhat number comes after two? | Three.\nWhat number comes before eight? | Seven.\nSpell \"CAR\". | C – A – R.\nSpell \"FISH\". | F – I – S – H.\nHow do you say \"branco\" in English? | White.\nHow do you say \"marrom\" in English? | Brown.\nHow do you say \"cinza\" in English? | Gray.\nHow do you say \"mochila\" in English? | Bag.\nHow do you say \"borracha\" in English? | Eraser.\nHow do you say \"bicicleta\" in English? | Bike.\nHow do you say \"lagarto\" in English? | Lizard.\nHow do you say \"Tchau\" in English? | Goodbye. / Bye.\nHow do you say \"Levante-se\" in English? | Stand up.\nWhat color is a frog? | Green.", "med": "What is three plus seven? Answer in English. | Ten.\nSpell \"PURPLE\". | P – U – R – P – L – E.\nTranslate: \"uma pipa nova\". | A new kite.\nTranslate: \"A aranha está embaixo da cadeira.\" | The spider is under the chair."}];
+const EX_BSSETS=[{"easy": "How do you say \"4\" in English? | Four.\nHow do you say \"9\" in English? | Nine.\nWhat number comes after six? | Seven.\nWhat number comes before ten? | Nine.\nSpell \"BLUE\". | B – L – U – E.\nSpell \"PEN\". | P – E – N.\nSpell \"BOOK\". | B – O – O – K.\nHow do you say \"régua\" in English? | Ruler.\nHow do you say \"lápis\" in English? | Pencil.\nHow do you say \"boneca\" in English? | Doll.\nHow do you say \"trem\" in English? | Train.\nHow do you say \"gato\" in English? | Cat.\nHow do you say \"cachorro\" in English? | Dog.\nHow do you say \"vermelho\" in English? | Red.\nHow do you say \"amarelo\" in English? | Yellow.\nWhat's your name? | My name is… / I'm…\nHow do you say \"3\" in English? | Three.\nHow do you say \"8\" in English? | Eight.\nWhat number comes after one? | Two.\nWhat number comes before four? | Three.\nSpell \"BALL\". | B – A – L – L.\nSpell \"BAG\". | B – A – G.\nHow do you say \"azul\" in English? | Blue.\nHow do you say \"laranja\" (a cor) in English? | Orange.\nHow do you say \"roxo\" in English? | Purple.\nHow do you say \"cadeira\" in English? | Chair.\nHow do you say \"carro\" in English? | Car.\nHow do you say \"pipa\" in English? | Kite.\nHow do you say \"sapo\" in English? | Frog.\nHow do you say \"peixe\" in English? | Fish.\nHow do you say \"Olá\" in English? | Hello. / Hi.\nHow do you say \"Sente-se\" in English? | Sit down.", "med": "What is three plus five? Answer in English. | Eight.\nWhat is ten minus four? Answer in English. | Six.\nSpell \"TRAIN\". | T – R – A – I – N.\nSpell \"PENCIL\". | P – E – N – C – I – L.\nSpell \"RULER\". | R – U – L – E – R.\nTranslate: \"uma bola grande\". | A big ball.\nTranslate: \"um trem comprido\". | A long train.\nTranslate: \"uma boneca bonita\". | A beautiful doll.\nBen is a boy. Complete: \"What's ___ favorite toy?\" | His.\nLucy is a girl. Complete: \"What's ___ favorite toy?\" | Her.\nI show you a book and ask: \"Is it a book?\" What do you answer? | Yes, it is.\nTranslate: \"Eu gosto de gatos.\" | I like cats.\nTranslate: \"Eu não gosto de aranhas.\" | I don't like spiders.\nTranslate: \"O sapo está dentro da bolsa.\" | The frog is in the bag.\nTranslate: \"O gato está embaixo da cadeira.\" | The cat is under the chair.\nTranslate: \"O livro está sobre a carteira.\" | The book is on the desk.\nWhat is two plus seven? Answer in English. | Nine.\nSpell \"LIZARD\". | L – I – Z – A – R – D.\nTranslate: \"um carro velho\". | An old car.\nTranslate: \"O sapo está embaixo da carteira.\" | The frog is under the desk.", "gold": "Traduza: \"Meu nome é ___, eu tenho 11 anos e minha cor favorita é cinza.\" | My name is ___, I'm eleven years old and my favorite color is gray. | 15\nTraduza: \"Com licença, abra seu livro e passe-me uma régua, por favor.\" | Excuse me, open your book and pass me a ruler, please. | 20\nTraduza: \"Eu gosto de gatos e cachorros brancos. Eu não gosto de ratos marrons.\" | I like cats and white dogs. I don't like brown rats. | 25\nTraduza: \"O lagarto está embaixo da cadeira e a aranha está dentro da mochila.\" | The lizard is under the chair and the spider is in the bag. | 30\nTraduza: \"O brinquedo favorito dela é uma boneca rosa bonita e o brinquedo favorito dele é um carro vermelho novo.\" | Her favorite toy is a beautiful pink doll and his favorite toy is a new red car. | 50"}, {"easy": "How do you say \"2\" in English? | Two.\nHow do you say \"7\" in English? | Seven.\nWhat number comes after eight? | Nine.\nWhat number comes before five? | Four.\nSpell \"RED\". | R – E – D.\nSpell \"DOG\". | D – O – G.\nSpell \"CAT\". | C – A – T.\nHow do you say \"livro\" in English? | Book.\nHow do you say \"caneta\" in English? | Pen.\nHow do you say \"bola\" in English? | Ball.\nHow do you say \"aranha\" in English? | Spider.\nHow do you say \"rato\" in English? | Rat.\nHow do you say \"verde\" in English? | Green.\nHow do you say \"rosa\" in English? | Pink.\nHow do you say \"preto\" in English? | Black.\nHow do you say \"Abra seu livro\" in English? | Open your book.\nHow do you say \"1\" in English? | One.\nHow do you say \"6\" in English? | Six.\nWhat number comes after two? | Three.\nWhat number comes before eight? | Seven.\nSpell \"CAR\". | C – A – R.\nSpell \"FISH\". | F – I – S – H.\nHow do you say \"branco\" in English? | White.\nHow do you say \"marrom\" in English? | Brown.\nHow do you say \"cinza\" in English? | Gray.\nHow do you say \"mochila\" in English? | Bag.\nHow do you say \"borracha\" in English? | Eraser.\nHow do you say \"bicicleta\" in English? | Bike.\nHow do you say \"lagarto\" in English? | Lizard.\nHow do you say \"Tchau\" in English? | Goodbye. / Bye.\nHow do you say \"Levante-se\" in English? | Stand up.\nWhat color is a frog? | Green.", "med": "What is four plus five? Answer in English. | Nine.\nWhat is nine minus six? Answer in English. | Three.\nWhat is two plus six? Answer in English. | Eight.\nSpell \"SPIDER\". | S – P – I – D – E – R.\nSpell \"DOLL\". | D – O – L – L.\nSpell \"YELLOW\". | Y – E – L – L – O – W.\nTranslate: \"uma bola pequena\". | A small ball.\nTranslate: \"um carro vermelho\". | A red car.\nTranslate: \"um cachorro preto\". | A black dog.\nTranslate: \"uma boneca rosa\". | A pink doll.\nTom is a boy. Complete: \"___ favorite color is blue.\" | His.\nAnna is a girl. Complete: \"___ favorite toy is a doll.\" | Her.\nTranslate: \"O rato está dentro da caixa.\" | The rat is in the box.\nTranslate: \"A aranha está sobre o livro.\" | The spider is on the book.\nTranslate: \"Eu gosto de cachorros brancos.\" | I like white dogs.\nTranslate: \"Eu não gosto de ratos.\" | I don't like rats.\nWhat is three plus seven? Answer in English. | Ten.\nSpell \"PURPLE\". | P – U – R – P – L – E.\nTranslate: \"uma pipa nova\". | A new kite.\nTranslate: \"A aranha está embaixo da cadeira.\" | The spider is under the chair.", "gold": "Traduza: \"Meu nome é Lucas, eu tenho oito anos e minha cor favorita é azul.\" | My name is Lucas, I'm eight years old and my favorite color is blue. | 15\nTraduza: \"Feche seu livro e passe-me um lápis e uma régua, por favor.\" | Close your book and pass me a pencil and a ruler, please. | 20\nTraduza: \"Eu gosto de gatos pretos e cachorros brancos, mas não gosto de aranhas.\" | I like black cats and white dogs, but I don't like spiders. | 25\nTraduza: \"O rato está embaixo da cadeira, o gato está sobre a carteira e o sapo está dentro da bolsa.\" | The rat is under the chair, the cat is on the desk and the frog is in the bag. | 30\nTraduza: \"O brinquedo favorito dela é uma boneca rosa pequena, o brinquedo favorito dele é um trem comprido e minha cor favorita é verde.\" | Her favorite toy is a small pink doll, his favorite toy is a long train and my favorite color is green. | 50"}];
 const content=()=>({q:EX_Q,bsSets:JSON.parse(JSON.stringify(EX_BSSETS)),bsSet:0,cats:EX_CATS,skip:EX_SKIP,bingoWords:EX_BINGO,hangWords:EX_HANG,cv:CONTENT_VERSION});
 let S;
 const def=()=>({teams:[{n:"Red Team",s:0},{n:"Blue Team",s:0},{n:"Green Team",s:0},{n:"Yellow Team",s:0}],active:0,hist:[],tab:"ship",bingoMode:"colors",...content()});
@@ -637,8 +640,11 @@ $$("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
 /* ---------- batalha naval 5x5 ---------- */
 /* 4 times (os 4 primeiros do placar), um navio de 3 casas cada; 13 casas de água: 9 Safe e 4 bombas (wb).
    O estado inteiro fica em S.bs; cada ação guarda uma cópia em bsSnaps para o "Desfazer". */
-const BN=5, BROWS="ABCDE";
-const BS_ORDER=[[0,1,2,3],[1,2,3,0],[2,3,0,1],[3,0,1,2],[0,1,2,3]];
+/* 6x6: 4 navios de 3 casas e 24 de água (8 bombas e 16 Safe). A ordem gira a cada rodada, e a partida
+   só acaba quando todas as casas forem abertas. */
+const BN=6, BROWS="ABCDEF";
+const BS_ORDER=[[0,1,2,3],[1,2,3,0],[2,3,0,1],[3,0,1,2]];
+const bsOrder=r=>BS_ORDER[(r-1)%BS_ORDER.length];
 const esc=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;");
 const tnm=i=>`${symSvg(i)} ${esc(S.teams[i]?.n||"Time "+(i+1))}`;
 const cname=i=>BROWS[Math.floor(i/BN)]+(i%BN+1);
@@ -657,22 +663,22 @@ function bsNewGame(){
     }
   } while(cells.filter(c=>c.k==="ship").length!==12);
   const water=cells.map((c,i)=>c.k==="safe"?i:-1).filter(i=>i>=0).sort(()=>Math.random()-.5);
-  water.slice(0,4).forEach(i=>cells[i]={k:"wb"});
+  water.slice(0,water.length/3).forEach(i=>cells[i]={k:"wb"});
   cells.forEach(c=>{c.exp=false;c.dead=false;c.sh=false;});
-  S.bs={cells,teams:[0,1,2,3].map(()=>({st:"ship",prot:false,stole:[]})),round:1,slot:0,phase:"pick",gi:0,set:S.bsSet||0,decks:null,
+  S.bs={cells,teams:[0,1,2,3].map(()=>({st:"ship",prot:false,stole:[],inv:0,invR:0})),round:1,slot:0,phase:"pick",gi:0,set:S.bsSet||0,decks:null,
     cur:null,who:null,q:null,ans:false,ghost:null,victim:null,finalOk:[],msg:""};
   bsSnaps=[]; bsDecks(); bsStartTurn();
 }
 const B=()=>S.bs;
-const turnTeam=()=>BS_ORDER[B().round-1][B().slot];
+const turnTeam=()=>bsOrder(B().round)[B().slot];
 const alive=()=>[0,1,2,3].filter(t=>B().teams[t].st!=="ghost");
 function bsSnap(){ bsSnaps.push({bs:JSON.stringify(S.bs),scores:S.teams.map(t=>t.s),hist:S.hist.length}); if(bsSnaps.length>80)bsSnaps.shift(); }
 function setTimer(sec){ if(!sec)return; tStop(); tLeft=sec; $("#timer").classList.remove("done"); tPaint(); }
 function bsStartTurn(){ const b=B(), t=turnTeam(); b.teams[t].prot=false; b.phase="pick"; b.q=null; b.ans=false; b.cur=null;
   b.msg=`Vez de ${tnm(t)}: escolham uma casa!`; }
 function bsAdvance(){ const b=B();
-  if(alive().length<=1) return bsFinal();
-  for(;;){ b.slot++; if(b.slot>3){b.slot=0;b.round++;} if(b.round>5) return bsFinal(); if(b.teams[turnTeam()].st!=="ghost")break; }
+  if(b.cells.every(c=>c.exp)||!alive().length) return bsFinal();
+  for(;;){ b.slot++; if(b.slot>3){b.slot=0;b.round++;} if(b.teams[turnTeam()].st!=="ghost")break; }
   bsStartTurn(); }
 /* Fáceis para casas de água (Safe/bomba), médias para casas de navio. Cada baralho é embaralhado
    no início da partida e só repete quando acabar. */
@@ -691,7 +697,7 @@ function loadQ(kind){ const b=B(), d=bsSetData();
     if(q) setTimer(q.sec); }
   b.ans=false; }
 function bsPick(i){ const b=B(), c=b.cells[i], t=turnTeam(); if(b.phase!=="pick"||c.exp)return; bsSnap();
-  c.exp=true; b.cur=i; b.who=t; fxMark("bs",i);
+  c.exp=true; b.cur=i; b.who=t; b.ok=false; b.invUse=false; fxMark("bs",i);
   if(c.k==="safe") b.msg=`${cname(i)}: água. SAFE!`;
   else if(c.k==="wb") b.msg=`${cname(i)}: BOMBA 💣 na água! Acertem para atirar nos outros; errem e ela explode no seu navio.`;
   else if(c.t===t) b.msg=`${cname(i)}: é o seu próprio ${c.v==="boat"?"bote":"navio"}!`;
@@ -699,11 +705,11 @@ function bsPick(i){ const b=B(), c=b.cells[i], t=turnTeam(); if(b.phase!=="pick"
   loadQ(c.k==="ship"?"med":"easy"); b.phase="answer"; renderBS(); }
 function bombTargets(){ const b=B(); return b.cells.map((c,i)=>i).filter(i=>{ const c=b.cells[i];
   return c.k==="ship"&&c.exp&&!c.dead&&c.t!==b.who&&!b.teams[c.t].prot&&b.teams[c.t].st!=="ghost"; }); }
-function bsRight(){ const b=B(), t=b.who, c=b.cells[b.cur]; bsSnap(); award(t,1,"batalha naval");
+function bsRight(){ const b=B(), t=b.who, c=b.cells[b.cur]; bsSnap(); award(t,1,"batalha naval"); b.ok=true;
   if(c.k==="safe"){ b.msg=`${tnm(t)}: +1!`; b.phase="next"; }
   else if(c.t===t&&c.k==="ship"){ c.sh=true; b.msg=`${tnm(t)}: +1 e ganhou um ESCUDO 🛡️ em ${cname(b.cur)}!`; b.phase="next"; }
   else if(bombTargets().length){ b.msg=`${tnm(t)}: +1 e ${c.k==="wb"?"a BOMBA 💣 é de vocês":"ganhou uma BOMBA 💣"}! Escolham o alvo.`; b.phase="bomb"; }
-  else { b.msg=`${tnm(t)}: +1! A bomba não tem alvo disponível agora.`; b.phase="next"; }
+  else { const s=b.teams[t]; s.inv=(s.inv||0)+1; b.msg=`${tnm(t)}: +1! Sem alvo agora, a bomba 💣 foi para o inventário (${s.inv}).`; b.phase="next"; }
   renderBS(); }
 /* Errar sempre custa algo: −1 na Safe e no navio adversário; dano no próprio navio na bomba da água e no próprio navio. */
 function bsWrong(){ const b=B(), t=b.who, c=b.cells[b.cur]; bsSnap(); b.phase="next";
@@ -715,10 +721,19 @@ function bsWrong(){ const b=B(), t=b.who, c=b.cells[b.cur]; bsSnap(); b.phase="n
   if(b.phase==="next"){ const g=[0,1,2,3].filter(x=>b.teams[x].st==="ghost"&&!b.teams[x].stole.includes(t));
     if(g.length){ b.phase="steal"; b.msg+=" Algum fantasma quer roubar?"; } }
   renderBS(); }
+function bsStealNow(g){ bsWrong(); if(B().phase==="steal") bsSteal(g); }
+/* Inventário: 1 bomba guardada por rodada, só depois de acertar a pergunta do turno; usar é opcional. */
+function invReady(){ const b=B(), t=b.who, s=b.teams[t]||{};
+  return b.phase==="next"&&b.ok&&t===turnTeam()&&(s.inv||0)>0&&s.invR!==b.round&&bombTargets().length>0; }
+function bsUseInv(){ const b=B(); if(!invReady())return; bsSnap(); b.invUse=true; b.phase="bomb"; b.msg=`${tnm(b.who)}: escolham o alvo da bomba do inventário.`; }
 function bsSteal(g){ const b=B(); bsSnap(); b.ghost=g; b.teams[g].stole.push(b.who); b.phase="stealq"; b.msg=`👻 ${tnm(g)} tenta roubar!`; renderBS(); }
 function bsStealResult(ok){ const b=B(); bsSnap(); if(ok){ award(b.ghost,1,"fantasma roubou"); b.msg=`👻 ${tnm(b.ghost)} roubou +1!`; } else { award(b.ghost,-1,"fantasma errou"); b.msg=`👻 ${tnm(b.ghost)} errou: −1.`; } b.phase="next"; renderBS(); }
 function bsBomb(i){ const b=B(); if(b.phase!=="bomb"||!bombTargets().includes(i))return; bsSnap();
+  if(b.invUse){ const s=b.teams[b.who]; s.inv--; s.invR=b.round; b.invUse=false; }
   b.teams[b.cells[i].t].prot=true; hit(i,b.who,""); renderBS(); }
+function bsSkipBomb(){ const b=B(); bsSnap(); b.phase="next";
+  if(b.invUse){ b.invUse=false; b.msg="A bomba continua no inventário."; }
+  else { award(b.who,3,"não usou a bomba"); b.msg=`${tnm(b.who)} não usou a bomba: +3!`; } }
 /* Dano numa parte de navio/bote. by = time que atirou (ganha +1 se afundar) ou null quando o dano é no próprio navio. */
 function hit(i,by,pre){ const b=B(), c=b.cells[i], v=c.t; c.exp=true; b.phase="next"; bsBoom=i;
   if(c.sh){ c.sh=false; b.msg=pre+`💣 ${cname(i)}: o escudo de ${tnm(v)} quebrou! O navio continua vivo.`; return; }
@@ -749,9 +764,9 @@ function bsEnd(){ const b=B(); bsSnap(); tStop();
 function bsAction(fn){ return ()=>{ fn(); save(); renderBS(); }; }
 function renderBS(){
   const b=B(), ok4=S.teams.length>=4;
-  $("#bsRound").textContent=(["final","over"].includes(b.phase)?"Final":`Rodada ${b.round} de 5`)+` · Partida ${(b.set||0)+1}`;
+  $("#bsRound").textContent=(["final","over"].includes(b.phase)?"Final":`Rodada ${b.round} · ${b.cells.filter(c=>!c.exp).length} casas fechadas`)+` · Partida ${(b.set||0)+1}`;
   if(b.decks) $("#bsDeckInfo").textContent=`Nesta partida ainda restam ${b.decks.easy.length} fáceis e ${b.decks.med.length} médias sem repetir.`;
-  $("#bsOrder").innerHTML=["final","over"].includes(b.phase)?"":BS_ORDER[b.round-1].map((t,k)=>`<span class="${k===b.slot?"now":k<b.slot?"done":""} ${b.teams[t].st==="ghost"?"ghost":""}">${tnm(t)}</span>`).join("");
+  $("#bsOrder").innerHTML=["final","over"].includes(b.phase)?"":bsOrder(b.round).map((t,k)=>`<span class="${k===b.slot?"now":k<b.slot?"done":""} ${b.teams[t].st==="ghost"?"ghost":""}">${tnm(t)}</span>`).join("");
   /* pergunta */
   const q=b.q; $("#bsQ").hidden=!q; $("#bsQ").classList.toggle("gold",!!q?.gold);
   if(q){ $("#bsQTag").textContent=q.tag||""; $("#bsQText").textContent=q.q; $("#bsQAns").textContent=q.a||"(sem resposta cadastrada)"; $("#bsQAns").hidden=!b.ans; }
@@ -759,15 +774,17 @@ function renderBS(){
   /* botões */
   const A=[]; const btn=(label,fn,cls="")=>A.push([label,fn,cls]);
   const reveal=()=>{ if(q&&!b.ans) btn("Revelar resposta",()=>{b.ans=true;}); };
-  if(b.phase==="answer"){ btn("✓ Acertou",bsRight,"ok"); btn("✗ Errou",bsWrong,"bad"); reveal(); }
-  else if(b.phase==="steal"){ const g=[0,1,2,3].filter(x=>b.teams[x].st==="ghost"&&!b.teams[x].stole.includes(b.who));
+  const ghosts=()=>[0,1,2,3].filter(x=>b.teams[x].st==="ghost"&&!b.teams[x].stole.includes(b.who));
+  if(b.phase==="answer"){ btn("✓ Acertou",bsRight,"ok"); btn("✗ Errou",bsWrong,"bad");
+    ghosts().forEach(x=>btn(`👻 ${tnm(x)}: STEAL!`,()=>bsStealNow(x),"steal")); reveal(); }
+  else if(b.phase==="steal"){ const g=ghosts();
     g.forEach(x=>btn(`👻 ${tnm(x)}: STEAL!`,()=>bsSteal(x)));
     if(g.length>1) btn("🎲 Sortear fantasma",()=>bsSteal(g[Math.floor(Math.random()*g.length)]));
     btn("Ninguém rouba",()=>{bsSnap(); b.phase="next"; b.msg="Ninguém roubou.";},"ghost"); }
   else if(b.phase==="stealq"){ btn("✓ Fantasma acertou",()=>bsStealResult(true),"ok"); btn("✗ Fantasma errou",()=>bsStealResult(false),"bad"); reveal(); }
-  else if(b.phase==="bomb"){ btn("Não usar a bomba",()=>{bsSnap(); b.phase="next"; b.msg="A bomba não foi usada.";},"ghost"); }
+  else if(b.phase==="bomb"){ btn(b.invUse?"Guardar a bomba":"Não usar a bomba: +3",bsSkipBomb,"ghost"); }
   else if(b.phase==="gold"){ btn("⏱ Iniciar tempo",()=>{tStart();}); btn("✓ Acertou: ganha um bote",()=>bsGold(true),"ok"); btn("✗ Errou: vira fantasma",()=>bsGold(false),"bad"); reveal(); }
-  else if(b.phase==="next"){ reveal(); btn("Próximo turno ▶",()=>{bsSnap(); bsAdvance();},"primary"); }
+  else if(b.phase==="next"){ reveal(); if(invReady()) btn(`💣 Usar bomba do inventário (${b.teams[b.who].inv})`,bsUseInv); btn("Próximo turno ▶",()=>{bsSnap(); bsAdvance();},"primary"); }
   else if(b.phase==="final"){ btn("⏱ Iniciar tempo",()=>{tStart();});
     [0,1,2,3].forEach(t=>btn(`${b.finalOk.includes(t)?"✓":"○"} ${tnm(t)}`,()=>{ b.finalOk=b.finalOk.includes(t)?b.finalOk.filter(x=>x!==t):[...b.finalOk,t]; },b.finalOk.includes(t)?"on":""));
     reveal(); btn("Encerrar e dar os pontos",bsEnd,"primary"); }
@@ -791,7 +808,7 @@ function renderBS(){
   $("#bsTeams").innerHTML=[0,1,2,3].map(t=>{ const s=b.teams[t]; if(!S.teams[t])return"";
     const main=b.cells.filter(c=>c.k==="ship"&&c.t===t&&c.v==="main");
     const st=s.st==="ship"?`Navio <span class="parts">${main.map(c=>c.dead?"□":"■").join("")}</span>`:s.st==="boat"?"Bote 🛟":s.st==="sunk"?"Afundado: Gold Mine":"👻 Fantasma";
-    return `<div class="bs-team ${s.st==="ghost"?"ghosted":""}">${symSvg(t)}<b>${esc(S.teams[t].n)}</b><div class="st">${st}${s.prot&&s.st!=="ghost"?" · sem bomba até jogar":""}</div></div>`; }).join("");
+    return `<div class="bs-team ${s.st==="ghost"?"ghosted":""}">${symSvg(t)}<b>${esc(S.teams[t].n)}</b><div class="st">${st}${s.inv?` · 💣×${s.inv}`:""}${s.prot&&s.st!=="ghost"?" · sem bomba até jogar":""}</div></div>`; }).join("");
 }
 $("#bsUndo").onclick=()=>{ const s=bsSnaps.pop(); if(!s)return; S.bs=JSON.parse(s.bs); S.teams.forEach((t,i)=>{ if(s.scores[i]!=null)t.s=s.scores[i]; }); S.hist.length=Math.min(S.hist.length,s.hist); save(); renderTeams(); renderBS(); };
 $("#shipPeek").onclick=()=>{peek=!peek; $("#shipPeek").textContent=peek?"Esconder tabuleiro":"Espiar tabuleiro"; renderBS();};
@@ -800,6 +817,10 @@ function bsLoadEditors(){ const d=S.bsSets[S.bsSet]; $("#bsSetSel").value=String
 $("#bsSetSel").onchange=e=>{ S.bsSet=+e.target.value; save(); bsLoadEditors(); };
 if(!Array.isArray(S.bsSets)||S.bsSets.length<2) S.bsSets=JSON.parse(JSON.stringify(EX_BSSETS));
 if(!(S.bsSet>=0&&S.bsSet<S.bsSets.length)) S.bsSet=0;
+if((S.bsBank||1)<2){ S.bsSets.forEach((d,i)=>{ const a=BS_ADD[i]; if(!a)return;
+    ["easy","med"].forEach(k=>{ const have=new Set(parseLines(d[k]).map(x=>x.q));
+      const add=a[k].split("\n").filter(l=>!have.has(l.split("|")[0].trim())); if(add.length) d[k]=(d[k]||"").replace(/\s*$/,"")+"\n"+add.join("\n"); }); });
+  S.bsBank=2; save(); }
 bsLoadEditors();
 
 /* ---------- stop ---------- */
