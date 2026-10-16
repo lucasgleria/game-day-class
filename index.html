@@ -1,0 +1,1065 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Day</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Figtree:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: projector-first classroom console. Scoreboard strip on top, one game panel below, timer always visible. Single dark "game board" look by choice. */
+:root{
+  --board:#0f2429; --panel:#17363d; --panel-2:#1f4750; --line:#2c5a63;
+  --chalk:#f4f0e3; --muted:#9db7b3; --accent:#ffc93c; --hit:#ff6b57; --water:#4fb3c8; --ok:#5fd38d;
+  --display:"Lilita One","Arial Rounded MT Bold",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--board);color:var(--chalk)}
+body{font-family:var(--body);font-size:16px;line-height:1.45}
+.wrap{padding-inline:clamp(16px,3vw,40px);padding-block:20px 40px;max-width:1400px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);font-weight:400;letter-spacing:.5px;margin:0;text-wrap:balance}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;border-radius:10px;background:var(--panel-2);padding:.5em .9em;font-weight:700;transition:transform .08s,background .15s}
+button:hover{background:var(--line)}
+button:active{transform:scale(.96)}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:#2a1e00}
+button.primary:hover{background:#ffd866}
+button.ghost{background:transparent;border:1px solid var(--line)}
+input,textarea,select{background:var(--board);border:1px solid var(--line);border-radius:8px;padding:.45em .6em;width:100%;box-sizing:border-box}
+textarea{min-height:120px;resize:vertical;font-size:14px}
+label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;display:block;margin-bottom:4px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+[hidden]{display:none!important}
+.muted{color:var(--muted)}
+/* Áreas do professor: listas com respostas ficam ocultas até abrir o modo edição */
+body:not(.editing) .teacher{display:none!important}
+.teacher-box{border:2px dashed var(--accent);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:10px}
+#editToggle[aria-pressed="true"]{background:var(--accent);color:#2a1e00}
+.small{font-size:13px}
+
+/* header */
+header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
+header h1{font-size:clamp(28px,4vw,44px);color:var(--accent);line-height:1}
+header .sub{color:var(--muted);font-size:14px}
+.timer{display:flex;align-items:center;gap:8px;background:var(--panel);padding:8px 10px;border-radius:14px}
+.timer .clock{font-family:var(--mono);font-size:clamp(28px,3.5vw,40px);font-weight:700;font-variant-numeric:tabular-nums;min-width:4.2ch;text-align:center}
+.timer.urgent .clock{color:var(--hit)}
+.timer.done{animation:flash .5s 6}
+@keyframes flash{50%{background:var(--hit)}}
+.timer select{width:auto}
+
+/* scoreboard */
+.teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.team{background:var(--panel);border-radius:16px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;border:3px solid transparent;position:relative;cursor:pointer}
+.team.active{border-color:var(--accent)}
+.team .stripe{position:absolute;inset:0 auto 0 0;width:8px;border-radius:13px 0 0 13px}
+.team .name{background:transparent;border:0;padding:0 0 0 8px;font-family:var(--display);font-size:22px;width:100%}
+.team .name:focus{background:var(--board)}
+.team .score{font-family:var(--display);font-size:clamp(48px,6vw,72px);line-height:1;padding-left:8px;font-variant-numeric:tabular-nums}
+.team .crown{position:absolute;top:10px;right:12px;font-size:12px;font-weight:800;color:#2a1e00;background:var(--accent);border-radius:99px;padding:2px 8px}
+.team .btns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-left:8px}
+.team .btns button{padding:.4em 0;font-family:var(--mono)}
+.team .btns .minus{background:transparent;border:1px solid var(--line);color:var(--muted)}
+.team .tag{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);padding-left:8px;font-weight:800;min-height:1em}
+.scorebar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.log{font-size:13px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+
+/* tabs */
+.tabs{display:flex;flex-wrap:wrap;gap:8px}
+.tabs button{background:transparent;border:2px solid var(--line);border-radius:99px;padding:.5em 1.1em;font-family:var(--display);font-weight:400;font-size:18px;letter-spacing:.3px}
+.tabs button[aria-selected="true"]{background:var(--chalk);color:var(--board);border-color:var(--chalk)}
+.panel{background:var(--panel);border-radius:20px;padding:clamp(16px,2.5vw,28px);display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:24px}
+.panel .stage{min-width:0;display:flex;flex-direction:column;gap:16px}
+.panel aside{min-width:0;display:flex;flex-direction:column;gap:14px;border-left:1px solid var(--line);padding-left:24px}
+@media (max-width:820px){.panel{grid-template-columns:1fr}.panel aside{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:18px}}
+.big{font-family:var(--display);font-size:clamp(56px,10vw,140px);line-height:1;text-align:center;color:var(--accent)}
+.callout{background:var(--board);border-radius:14px;padding:18px;text-align:center}
+.question{font-size:clamp(20px,2.6vw,32px);font-weight:800;text-wrap:balance}
+.answer{color:var(--ok);font-weight:800;font-size:clamp(18px,2vw,24px)}
+.note{background:var(--board);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted)}
+.note b{color:var(--chalk)}
+
+/* battleship 5x5 */
+.bs-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.bs-round{font-family:var(--display);font-size:clamp(20px,2.4vw,28px)}
+.bs-order{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.bs-order span{display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:99px;background:var(--board);font-weight:700;font-size:14px;opacity:.6}
+.bs-order span.now{opacity:1;outline:3px solid var(--accent)}
+.bs-order span.done{opacity:.3}
+.bs-order span.ghost{text-decoration:line-through;opacity:.3}
+.grid{display:grid;grid-template-columns:2.2em repeat(5,minmax(0,1fr));gap:6px;width:100%;max-width:600px;margin:0 auto}
+.grid .head{display:flex;align-items:center;justify-content:center;font-family:var(--display);color:var(--muted);font-size:clamp(18px,2vw,24px)}
+.grid .cell{aspect-ratio:1;max-width:100%;border-radius:10px;background:#1d4e5a;font-family:var(--mono);font-weight:700;font-size:clamp(14px,1.8vw,20px);color:#b9d3d0;padding:0;display:flex;align-items:center;justify-content:center;position:relative;border:3px solid transparent}
+.grid .cell:disabled{cursor:default}
+.grid .cell.pick:not(:disabled):hover{background:#2a6f7e}
+.grid .cell.safe{background:var(--water);color:#06323b;font-family:var(--display);font-size:clamp(12px,1.6vw,18px)}
+.grid .cell.wb{background:#ffd8a8;font-size:clamp(22px,3vw,36px)}
+.grid .cell.ship{background:var(--panel-2)}
+.grid .cell.ship svg{width:62%;height:62%}
+.grid .cell.dead{background:#5c1a14}
+.grid .cell.dead svg{opacity:.35}
+.grid .cell.dead::after{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#ff6b57;font-size:clamp(34px,5vw,60px);font-family:var(--display)}
+.grid .cell .shield{position:absolute;top:2px;right:4px;font-size:clamp(14px,1.8vw,22px)}
+.grid .cell.last{border-color:var(--accent)}
+.grid .cell.target{border-color:var(--hit);animation:pulse 1s infinite}
+@keyframes pulse{50%{border-color:transparent}}
+.grid .cell .peek{position:absolute;bottom:2px;left:4px;width:34%;height:34%;opacity:.8}
+.grid .cell .peek svg{width:100%;height:100%}
+.bs-msg{font-family:var(--display);font-size:clamp(20px,2.6vw,32px);text-align:center;min-height:1.2em;text-wrap:balance}
+.bs-msg svg{width:.9em;height:.9em;vertical-align:-.1em}
+.bs-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
+.bs-actions button{font-size:18px;display:flex;align-items:center;gap:8px}
+.bs-actions button svg{width:1.1em;height:1.1em}
+.bs-actions .ok{background:var(--ok);color:#06331a}
+.bs-actions .bad{background:var(--hit);color:#fff}
+.bs-actions .on{outline:3px solid var(--accent)}
+.bs-q .tag{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);font-weight:800;margin-bottom:6px}
+.bs-q.gold{background:#3b2f00;outline:3px solid var(--accent)}
+.bs-teams{display:flex;flex-direction:column;gap:8px}
+.bs-team{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;background:var(--board);border-radius:10px;padding:8px 10px}
+.bs-team svg{width:28px;height:28px;grid-row:span 2}
+.bs-team b{font-size:16px}
+.bs-team .st{font-size:14px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bs-team .st button{padding:.2em .6em;font-size:13px}
+.bs-team.ghosted{opacity:.6}
+.parts{letter-spacing:2px}
+
+/* bingo */
+.bingo-board{display:grid;gap:8px}
+.bingo-board.colors{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}
+.bingo-board.nums{grid-template-columns:repeat(10,minmax(0,1fr))}
+.bingo-board .cell{background:var(--board);border-radius:10px;padding:8px 4px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px;opacity:.45;border:3px solid transparent}
+.bingo-board .cell.on{opacity:1;border-color:var(--accent);background:var(--panel-2)}
+.bingo-board .sw{width:100%;aspect-ratio:1.4;border-radius:8px;border:2px solid #9db7b3;position:relative}
+/* Cores: nunca desbotar (a cor tem que ser fiel); a cor sorteada ganha moldura e um visto */
+.bingo-board.colors .cell{opacity:1}
+.bingo-board.colors .cell .lbl{color:var(--muted)}
+.bingo-board.colors .cell.on .lbl{color:var(--chalk)}
+.bingo-board.colors .cell.on .sw::after{content:"✓";position:absolute;right:4px;top:0;font-weight:800;font-size:22px;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000}
+.bingo-board .lbl{font-weight:800;font-size:clamp(14px,1.6vw,20px)}
+.bingo-board.nums .cell{font-family:var(--display);font-size:clamp(20px,2.6vw,34px);padding:10px 2px}
+.bingo-now{display:flex;flex-direction:column;align-items:center;gap:10px}
+#bingoSwatch{width:100%;display:flex;justify-content:center}
+#bingoSwatch:empty{display:none}
+.bingo-now .sw{width:min(60%,260px);aspect-ratio:1.6;border-radius:16px;border:3px solid #9db7b3}
+@media (max-width:600px){.bingo-board.nums{grid-template-columns:repeat(6,minmax(0,1fr))}}
+
+/* tic tac toe */
+.ttt{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;width:min(100%,560px);margin:0 auto}
+.ttt button{aspect-ratio:1;max-width:100%;background:var(--board);border-radius:10px;padding:0;display:flex;align-items:center;justify-content:center;line-height:1}
+.ttt button .num{font-family:var(--mono);font-weight:700;font-size:clamp(16px,2.2vw,26px);color:#7fa3a3}
+.ttt button svg{width:72%;height:72%}
+.ttt button:disabled{cursor:default}
+.ttt.placing button:not(:disabled){outline:2px dashed var(--accent);outline-offset:-4px}
+.ttt button.line{background:var(--panel-2);box-shadow:inset 0 0 0 3px var(--ok)}
+.sym{display:inline-block;width:1.2em;height:1.2em;vertical-align:-.2em}
+.team .sym.big{position:absolute;right:14px;bottom:56px;width:40px;height:40px}
+.picker{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center}
+.picker button{display:flex;align-items:center;gap:8px;font-size:18px;padding:.55em 1em}
+.picker button.on{outline:3px solid var(--accent)}
+.legend{display:flex;flex-direction:column;gap:6px;font-weight:700}
+.pts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+
+/* hangman */
+.hang{display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:center}
+.hang svg{width:180px;max-width:100%;height:auto}
+.hang svg line,.hang svg circle{stroke:var(--chalk);stroke-width:5;stroke-linecap:round;fill:none}
+.hang svg .part{opacity:0;transition:opacity .2s}
+.hang svg .part.on{opacity:1;stroke:var(--hit)}
+.slots{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.slots span{min-width:1.1em;border-bottom:4px solid var(--chalk);font-family:var(--display);font-size:clamp(32px,5vw,56px);text-align:center;line-height:1.1}
+.slots span.space{border:0}
+.keys{display:grid;grid-template-columns:repeat(13,minmax(0,1fr));gap:5px}
+@media (max-width:600px){.keys{grid-template-columns:repeat(7,minmax(0,1fr))}}
+.keys button{padding:.5em 0;font-family:var(--mono)}
+.keys button:disabled{opacity:.25;cursor:default}
+.keys button.good{background:var(--ok);color:#06331a;opacity:1}
+.status{font-family:var(--display);font-size:clamp(22px,3vw,34px);text-align:center;min-height:1.2em}
+.status.win{color:var(--ok)} .status.lose{color:var(--hit)}
+.letters-used{font-family:var(--mono);color:var(--muted);text-align:center;letter-spacing:.2em;word-break:break-all}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+/* animações: o quadrado escolhido cai no lugar com fade; explosão das bombas por cima do tabuleiro */
+@keyframes fxDrop{0%{opacity:0;transform:translateY(-80%) scale(1.15)}60%{opacity:1;transform:translateY(7%) scale(1)}80%{transform:translateY(-3%)}100%{opacity:1;transform:none}}
+.fx-drop{animation:fxDrop .75s cubic-bezier(.3,.7,.4,1) both!important;position:relative;z-index:2}
+.fx-boom{position:fixed;pointer-events:none;z-index:60}
+@keyframes boomFb{0%{opacity:0;transform:scale(.3)}30%{opacity:1;transform:scale(1.2)}100%{opacity:0;transform:scale(1.6)}}
+.fx-boom.fb{display:grid;place-items:center;font-size:90px;animation:boomFb .9s ease-out forwards}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+header>div:first-child{flex:1 1 320px;min-width:0}
+/* Roleta de alunos */
+.wheel-ov{position:fixed;inset:0;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}
+.wheel-box{background:var(--panel);border-radius:20px;padding:20px 24px;width:min(720px,100%);max-height:92vh;overflow:auto;display:flex;flex-direction:column;gap:14px;border:3px solid var(--accent)}
+.wheel-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.wheel-head h2{color:var(--accent);font-size:28px}
+.wheel-name{font-family:var(--display);font-size:clamp(44px,8vw,96px);text-align:center;line-height:1.1;min-height:1.2em;padding:18px 8px;background:var(--board);border-radius:16px;overflow-wrap:anywhere}
+.wheel-name.spin{color:var(--muted)}
+.wheel-name.win{color:var(--accent);animation:wheelPop .5s}
+@keyframes wheelPop{0%{transform:scale(.7)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+.wheel-used{display:flex;flex-wrap:wrap;gap:6px}
+.wheel-used span{background:var(--board);border-radius:999px;padding:2px 10px;font-size:13px;color:var(--muted);text-decoration:line-through}
+.wheel-box textarea{min-height:160px}
+
+/* Pódio */
+.pod-ov{position:fixed;inset:0;background:var(--board);z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:24px 16px 0;overflow:hidden}
+.pod-ov h2{position:absolute;top:24px;left:0;right:0;text-align:center;color:var(--accent);font-size:clamp(36px,6vw,72px)}
+.pod-close{position:absolute;top:20px;right:20px;z-index:3}
+.pod-stage{display:flex;align-items:flex-end;justify-content:center;gap:clamp(8px,2vw,24px);width:min(1100px,100%);position:relative;z-index:2}
+.pod-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:10px;opacity:0;transform:translateY(40px);transition:opacity .6s,transform .6s}
+.pod-col.show{opacity:1;transform:none}
+.pod-name{font-family:var(--display);font-size:clamp(22px,3.2vw,44px);text-align:center;line-height:1.1;overflow-wrap:anywhere}
+.pod-pts{font-family:var(--mono);font-weight:700;font-size:clamp(18px,2.4vw,30px);color:var(--muted)}
+.pod-bar{width:100%;border-radius:18px 18px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:14px;font-family:var(--display);font-size:clamp(48px,8vw,110px);color:#2a1e00;box-shadow:inset 0 -10px 0 rgba(0,0,0,.15)}
+.pod-col.p1 .pod-bar{height:44vh}.pod-col.p2 .pod-bar{height:31vh}.pod-col.p3 .pod-bar{height:22vh}
+.pod-col.p1 .pod-name{color:var(--accent);font-size:clamp(28px,4.2vw,60px)}
+.pod-rest{position:absolute;top:clamp(110px,17vh,160px);left:0;right:0;text-align:center;color:var(--muted);font-size:18px;z-index:2}
+#podFx{position:absolute;inset:0;pointer-events:none;z-index:1}
+</style>
+<!-- Explosão: emoji animado "collision" do Noto Emoji (Google, licença CC BY 4.0), tocado pelo lottie-web (MIT). -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie_light.min.js"></script>
+<script type="application/json" id="boomData">{"v":"5.8.1","fr":60,"ip":0,"op":76,"w":1024,"h":1024,"nm":"emoji_colision","ddd":0,"assets":[{"id":"comp_0","nm":"explotion_01","fr":60,"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Layer 5 Outlines 5","td":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[611.666,592.334,0],"ix":2,"l":2},"a":{"a":0,"k":[236.25,252.917,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,-0.256]},"t":16,"s":[30,30,100]},{"t":38,"s":[100,100,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":1,"k":[{"i":{"x":0.833,"y":0.833},"o":{"x":0.167,"y":0.167},"t":16,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-17.333,-252.667],[37.334,-139.334],[142.667,-211.334],[121.334,-72.574],[236,-101.999],[146.667,35.333],[210.667,84.666],[138.371,107.505],[167.408,185.555],[78.667,156.666],[42.667,252.666],[-25.333,121.999],[-156,207.333],[-128,87.333],[-224,103.333],[-142.666,28.666],[-236,-26.001],[-117.333,-40.667],[-173.333,-169.999],[-53.333,-132.667]],"c":true}]},{"i":{"x":0.833,"y":0.833},"o":{"x":0.167,"y":0.167},"t":24,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-41.182,-395.902],[55.896,-216.26],[251.01,-368.808],[167.807,-114.624],[307.002,-147.403],[191.008,49.749],[305.521,89.708],[183.232,142.488],[262.177,287.414],[92.199,191.406],[37.633,329.589],[-47.493,162.944],[-226.619,300.496],[-165.256,144.494],[-388.91,177.245],[-226.705,62.525],[-401.796,-73.565],[-219.548,-68.587],[-357.599,-343.942],[-88.703,-191.74]],"c":true}]},{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":32,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-60.469,-511.741],[110.331,-380.927],[338.631,-496.163],[294.468,-222.045],[364.423,-184.122],[319.87,21.447],[353.985,83.192],[311.17,192.811],[338.821,369.791],[131.754,297.239],[33.561,391.798],[-84.333,290.85],[-283.731,375.84],[-334.133,249.89],[-522.279,237.02],[-426.514,60.693],[-535.881,-112.032],[-410.375,-182.008],[-506.622,-484.616],[-166.598,-361.312]],"c":true}]},{"t":38,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-68.074,-557.417],[96.519,-401.467],[373.18,-546.378],[269.444,-240.811],[387.064,-198.6],[290.239,2.003],[373.094,80.622],[283.049,181.937],[369.041,402.271],[107.457,294.581],[31.956,416.328],[-92.174,297.732],[-306.25,405.547],[-340.192,253.258],[-574.866,260.589],[-424.856,46.549],[-588.75,-127.199],[-408.655,-208.381],[-565.381,-540.083],[-172.895,-386.354]],"c":true}]}],"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[1,1,1,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[236.25,252.917],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":16,"op":40,"st":16,"bm":0},{"ddd":0,"ind":2,"ty":0,"nm":"explotion A","tt":2,"refId":"comp_1","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[512,512,0],"ix":2,"l":2},"a":{"a":0,"k":[512,512,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"w":1024,"h":1024,"ip":0,"op":40,"st":0,"bm":0}]},{"id":"comp_1","nm":"explotion A","fr":60,"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Layer 5 Outlines 6","td":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[611.666,592.334,0],"ix":2,"l":2},"a":{"a":0,"k":[236.25,252.917,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,0.369]},"t":7,"s":[30,30,100]},{"t":28,"s":[98,98,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":1,"k":[{"i":{"x":0.833,"y":0.833},"o":{"x":0.167,"y":0.167},"t":7,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-17.333,-252.667],[37.334,-139.334],[142.667,-211.334],[121.334,-72.574],[236,-101.999],[146.667,35.333],[210.667,84.666],[138.371,107.505],[167.408,185.555],[78.667,156.666],[42.667,252.666],[-25.333,121.999],[-156,207.333],[-128,87.333],[-224,103.333],[-142.666,28.666],[-236,-26.001],[-117.333,-40.667],[-173.333,-169.999],[-53.333,-132.667]],"c":true}]},{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":13,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-45.319,-420.752],[65.362,-163.488],[269.807,-396.128],[120.205,-70.811],[305.785,-126.857],[132.356,48.635],[271.831,95.971],[141.765,118.477],[248.843,282.077],[68.127,164.951],[24.578,294.209],[-43.697,145.025],[-202.327,266.581],[-141.053,117.584],[-390.452,171.12],[-207.611,56.077],[-435.974,-56.101],[-177.888,-37.059],[-389.568,-374.12],[-58.763,-153.062]],"c":true}]},{"t":21,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-68.074,-557.417],[68.519,-271.467],[373.18,-546.378],[217.444,-152.811],[387.064,-198.6],[226.239,30.003],[373.094,80.622],[223.049,151.937],[369.041,402.271],[91.457,230.581],[31.956,416.328],[-56.174,217.732],[-306.25,405.547],[-230.192,191.258],[-574.866,260.589],[-316.856,68.549],[-588.75,-127.199],[-278.655,-100.381],[-565.381,-540.083],[-104.895,-238.354]],"c":true}]}],"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"gf","o":{"a":0,"k":100,"ix":10},"r":1,"bm":0,"g":{"p":3,"k":{"a":0,"k":[0,1,1,1,0.491,1,0.973,0.731,1,1,0.945,0.463],"ix":9}},"s":{"a":0,"k":[0,0],"ix":5},"e":{"a":0,"k":[187.61,-225.811],"ix":6},"t":2,"h":{"a":0,"k":0,"ix":7},"a":{"a":0,"k":0,"ix":8},"nm":"Gradient Fill 1","mn":"ADBE Vector Graphic - G-Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[236.25,252.917],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"st","c":{"a":0,"k":[1,0.921569824219,0.231384277344,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":34,"ix":5},"lc":1,"lj":1,"ml":9,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false}],"ip":7,"op":41,"st":7,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"Layer 5 Outlines 4","tt":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[611.666,592.334,0],"ix":2,"l":2},"a":{"a":0,"k":[236.25,252.917,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,0.369]},"t":7,"s":[30,30,100]},{"t":28,"s":[98,98,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":1,"k":[{"i":{"x":0.833,"y":0.833},"o":{"x":0.167,"y":0.167},"t":7,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-17.333,-252.667],[37.334,-139.334],[142.667,-211.334],[121.334,-72.574],[236,-101.999],[146.667,35.333],[210.667,84.666],[138.371,107.505],[167.408,185.555],[78.667,156.666],[42.667,252.666],[-25.333,121.999],[-156,207.333],[-128,87.333],[-224,103.333],[-142.666,28.666],[-236,-26.001],[-117.333,-40.667],[-173.333,-169.999],[-53.333,-132.667]],"c":true}]},{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":13,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-45.319,-420.752],[65.362,-163.488],[269.807,-396.128],[120.205,-70.811],[305.785,-126.857],[132.356,48.635],[271.831,95.971],[141.765,118.477],[248.843,282.077],[68.127,164.951],[24.578,294.209],[-43.697,145.025],[-202.327,266.581],[-141.053,117.584],[-390.452,171.12],[-207.611,56.077],[-435.974,-56.101],[-177.888,-37.059],[-389.568,-374.12],[-58.763,-153.062]],"c":true}]},{"t":21,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-68.074,-557.417],[68.519,-271.467],[373.18,-546.378],[217.444,-152.811],[387.064,-198.6],[226.239,30.003],[373.094,80.622],[223.049,151.937],[369.041,402.271],[91.457,230.581],[31.956,416.328],[-56.174,217.732],[-306.25,405.547],[-230.192,191.258],[-574.866,260.589],[-316.856,68.549],[-588.75,-127.199],[-278.655,-100.381],[-565.381,-540.083],[-104.895,-238.354]],"c":true}]}],"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"gf","o":{"a":0,"k":100,"ix":10},"r":1,"bm":0,"g":{"p":3,"k":{"a":0,"k":[0,1,1,1,0.491,1,0.973,0.731,1,1,0.945,0.463],"ix":9}},"s":{"a":0,"k":[0,0],"ix":5},"e":{"a":0,"k":[187.61,-225.811],"ix":6},"t":2,"h":{"a":0,"k":0,"ix":7},"a":{"a":0,"k":0,"ix":8},"nm":"Gradient Fill 1","mn":"ADBE Vector Graphic - G-Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[236.25,252.917],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"st","c":{"a":0,"k":[1,0.921569824219,0.231384277344,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":56,"ix":5},"lc":1,"lj":1,"ml":9,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false}],"ip":7,"op":41,"st":7,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Layer 5 Outlines 3","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[611.666,592.334,0],"ix":2,"l":2},"a":{"a":0,"k":[236.25,252.917,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,0.371]},"t":2,"s":[30,30,100]},{"t":22,"s":[99,99,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":1,"k":[{"i":{"x":0.833,"y":0.833},"o":{"x":0.167,"y":0.167},"t":2,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-17.333,-252.667],[37.334,-139.334],[142.667,-211.334],[121.334,-72.574],[236,-101.999],[146.667,35.333],[210.667,84.666],[138.371,107.505],[167.408,185.555],[78.667,156.666],[42.667,252.666],[-25.333,121.999],[-156,207.333],[-128,87.333],[-224,103.333],[-142.666,28.666],[-236,-26.001],[-117.333,-40.667],[-173.333,-169.999],[-53.333,-132.667]],"c":true}]},{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":14,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-70.049,-552.858],[63.115,-274.134],[359.432,-540.552],[209.322,-157.65],[376.642,-202.754],[218.81,22.028],[362.196,72.594],[215.406,141.879],[356.502,385.003],[86.823,219.29],[28.306,401.279],[-58.982,205.528],[-304.059,389.053],[-230.013,178.711],[-564.278,245.809],[-313.663,58.682],[-578.083,-131.161],[-276.001,-106.079],[-553.069,-532.79],[-106.835,-242.128]],"c":true}]},{"t":16,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-68.074,-557.417],[68.519,-271.467],[373.18,-546.378],[217.444,-152.811],[387.064,-198.6],[226.239,30.003],[373.094,80.622],[223.049,151.937],[369.041,402.271],[91.457,230.581],[31.956,416.328],[-56.174,217.732],[-306.25,405.547],[-230.192,191.258],[-574.866,260.589],[-316.856,68.549],[-588.75,-127.199],[-278.655,-100.381],[-565.381,-540.083],[-104.895,-238.354]],"c":true}]}],"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[1,0.626983642578,0,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[236.25,252.917],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.956970214844,0.263000488281,0.211975097656,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":9,"ix":5},"lc":1,"lj":1,"ml":11,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false}],"ip":2,"op":28,"st":2,"bm":0},{"ddd":0,"ind":4,"ty":4,"nm":"Layer 5 Outlines 5","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[611.666,592.334,0],"ix":2,"l":2},"a":{"a":0,"k":[236.25,252.917,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,0.371]},"t":-1,"s":[30,30,100]},{"t":19,"s":[99,99,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":1,"k":[{"i":{"x":0.833,"y":0.833},"o":{"x":0.167,"y":0.167},"t":-1,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-17.333,-252.667],[37.334,-139.334],[142.667,-211.334],[121.334,-72.574],[236,-101.999],[146.667,35.333],[210.667,84.666],[138.371,107.505],[167.408,185.555],[78.667,156.666],[42.667,252.666],[-25.333,121.999],[-156,207.333],[-128,87.333],[-224,103.333],[-142.666,28.666],[-236,-26.001],[-117.333,-40.667],[-173.333,-169.999],[-53.333,-132.667]],"c":true}]},{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":11,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-70.049,-552.858],[63.115,-274.134],[359.432,-540.552],[209.322,-157.65],[376.642,-202.754],[218.81,22.028],[362.196,72.594],[215.406,141.879],[356.502,385.003],[86.823,219.29],[28.306,401.279],[-58.982,205.528],[-304.059,389.053],[-230.013,178.711],[-564.278,245.809],[-313.663,58.682],[-578.083,-131.161],[-276.001,-106.079],[-553.069,-532.79],[-106.835,-242.128]],"c":true}]},{"t":13,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-68.074,-557.417],[68.519,-271.467],[373.18,-546.378],[217.444,-152.811],[387.064,-198.6],[226.239,30.003],[373.094,80.622],[223.049,151.937],[369.041,402.271],[91.457,230.581],[31.956,416.328],[-56.174,217.732],[-306.25,405.547],[-230.192,191.258],[-574.866,260.589],[-316.856,68.549],[-588.75,-127.199],[-278.655,-100.381],[-565.381,-540.083],[-104.895,-238.354]],"c":true}]}],"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0.956862745098,0.262745098039,0.211764705882,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[236.25,252.917],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.956970214844,0.263000488281,0.211975097656,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":9,"ix":5},"lc":1,"lj":1,"ml":11,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false}],"ip":-1,"op":20,"st":-1,"bm":0}]},{"id":"comp_2","nm":"smoke","fr":60,"layers":[{"ddd":0,"ind":1,"ty":3,"nm":"Red Solid 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":1,"k":[{"i":{"x":[0.667],"y":[1]},"o":{"x":[0.167],"y":[0.167]},"t":20,"s":[0]},{"t":90,"s":[-5]}],"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":20,"s":[412,462,0],"to":[18.333,16.667,0],"ti":[-18.333,-16.667,0]},{"t":90,"s":[522,562,0]}],"ix":2,"l":2},"a":{"a":0,"k":[512,512,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"ip":20,"op":94,"st":20,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"Shape Layer 3","parent":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.333,"y":0},"t":20,"s":[796,699,0],"to":[8.333,0.349,0],"ti":[-8.333,-0.349,0]},{"t":82,"s":[845.996,701.093,0]}],"ix":2,"l":2},"a":{"a":0,"k":[261,176,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":62,"s":[236,236,100]},{"t":82,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"d":1,"ty":"el","s":{"a":0,"k":[18.5,18.5],"ix":2},"p":{"a":0,"k":[0,0],"ix":3},"nm":"Ellipse Path 1","mn":"ADBE Vector Shape - Ellipse","hd":false},{"ty":"st","c":{"a":0,"k":[1,0.942260981541,0.431731998219,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":0,"ix":5},"lc":1,"lj":1,"ml":4,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819976806641,0.819976806641,0.819976806641,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[262.75,174.75],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Ellipse 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":20,"op":94,"st":20,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Shape Layer 2","parent":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.333,"y":0},"t":20,"s":[778.5,719,0],"to":[0.672,6.075,0],"ti":[-0.672,-6.075,0]},{"t":74,"s":[782.535,755.452,0]}],"ix":2,"l":2},"a":{"a":0,"k":[261,176,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":30,"s":[236,236,100]},{"t":78,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"d":1,"ty":"el","s":{"a":0,"k":[18.5,18.5],"ix":2},"p":{"a":0,"k":[0,0],"ix":3},"nm":"Ellipse Path 1","mn":"ADBE Vector Shape - Ellipse","hd":false},{"ty":"st","c":{"a":0,"k":[1,0.942260981541,0.431731998219,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":0,"ix":5},"lc":1,"lj":1,"ml":4,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819976806641,0.819976806641,0.819976806641,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[262.75,174.75],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Ellipse 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":20,"op":94,"st":20,"bm":0},{"ddd":0,"ind":4,"ty":4,"nm":"Shape Layer 1","parent":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[773,688,0],"ix":2,"l":2},"a":{"a":0,"k":[261,176,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":38,"s":[236,236,100]},{"t":72,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"d":1,"ty":"el","s":{"a":0,"k":[18.5,18.5],"ix":2},"p":{"a":0,"k":[0,0],"ix":3},"nm":"Ellipse Path 1","mn":"ADBE Vector Shape - Ellipse","hd":false},{"ty":"st","c":{"a":0,"k":[1,0.942260981541,0.431731998219,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":0,"ix":5},"lc":1,"lj":1,"ml":4,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819976806641,0.819976806641,0.819976806641,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[262.75,174.75],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Ellipse 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":20,"op":94,"st":20,"bm":0}]},{"id":"comp_3","nm":"explotion_02","fr":60,"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Layer 5 Outlines 5","td":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[611.666,592.334,0],"ix":2,"l":2},"a":{"a":0,"k":[236.25,252.917,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,-0.256]},"t":16,"s":[30,30,100]},{"t":38,"s":[100,100,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":1,"k":[{"i":{"x":0.833,"y":0.833},"o":{"x":0.167,"y":0.167},"t":16,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-17.333,-252.667],[37.334,-139.334],[142.667,-211.334],[121.334,-72.574],[236,-101.999],[146.667,35.333],[210.667,84.666],[138.371,107.505],[167.408,185.555],[78.667,156.666],[42.667,252.666],[-25.333,121.999],[-156,207.333],[-128,87.333],[-224,103.333],[-142.666,28.666],[-236,-26.001],[-117.333,-40.667],[-173.333,-169.999],[-53.333,-132.667]],"c":true}]},{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":26,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-46.925,-430.398],[63.07,-221.962],[277.103,-406.733],[179.174,-113.613],[324.101,-158.337],[182.103,51.019],[305.395,82.308],[187.624,159.695],[285.001,311.945],[82.286,199.779],[36.42,348.114],[-53.339,191.558],[-243.626,322.933],[-194.674,162.149],[-428.626,195.046],[-256.749,69.829],[-441.725,-85.02],[-225.765,-68.23],[-401.977,-385.834],[-81.352,-168.659]],"c":true}]},{"t":38,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-68.074,-557.417],[96.519,-401.467],[373.18,-546.378],[269.444,-240.811],[387.064,-198.6],[290.239,2.003],[373.094,80.622],[307.049,241.937],[393.041,462.271],[131.457,354.581],[55.956,476.328],[-68.174,357.732],[-306.25,405.547],[-340.192,253.258],[-574.866,260.589],[-424.856,46.549],[-588.75,-127.199],[-408.655,-208.381],[-565.381,-540.083],[-172.895,-386.354]],"c":true}]}],"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[1,1,1,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[236.25,252.917],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":16,"op":38,"st":16,"bm":0},{"ddd":0,"ind":2,"ty":0,"nm":"explotion","tt":2,"refId":"comp_4","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[512,512,0],"ix":2,"l":2},"a":{"a":0,"k":[512,512,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"w":1024,"h":1024,"ip":0,"op":38,"st":0,"bm":0}]},{"id":"comp_4","nm":"explotion","fr":60,"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Layer 5 Outlines 5","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[611.666,592.334,0],"ix":2,"l":2},"a":{"a":0,"k":[236.25,252.917,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,0.706]},"t":8,"s":[30,30,100]},{"t":34,"s":[100,100,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":8,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-17.333,-252.667],[37.334,-139.334],[142.667,-211.334],[121.334,-72.574],[236,-101.999],[146.667,35.333],[210.667,84.666],[138.371,107.505],[167.408,185.555],[78.667,156.666],[42.667,252.666],[-25.333,121.999],[-156,207.333],[-128,87.333],[-224,103.333],[-142.666,28.666],[-236,-26.001],[-117.333,-40.667],[-173.333,-169.999],[-53.333,-132.667]],"c":true}]},{"t":22,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-68.074,-557.417],[68.519,-271.467],[373.18,-546.378],[217.444,-152.811],[387.064,-198.6],[226.239,30.003],[373.094,80.622],[223.049,151.937],[369.041,402.271],[91.457,230.581],[31.956,416.328],[-56.174,217.732],[-306.25,405.547],[-230.192,191.258],[-574.866,260.589],[-316.856,68.549],[-588.75,-127.199],[-278.655,-100.381],[-565.381,-540.083],[-104.895,-238.354]],"c":true}]}],"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[1,0.626983642578,0,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[236.25,252.917],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.956970214844,0.263000488281,0.211975097656,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":9,"ix":5},"lc":1,"lj":1,"ml":5,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false}],"ip":8,"op":38,"st":8,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"Layer 5 Outlines 3","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[611.666,592.334,0],"ix":2,"l":2},"a":{"a":0,"k":[236.25,252.917,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,0.706]},"t":6,"s":[30,30,100]},{"t":32,"s":[100,100,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":6,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-17.333,-252.667],[37.334,-139.334],[142.667,-211.334],[121.334,-72.574],[236,-101.999],[146.667,35.333],[210.667,84.666],[138.371,107.505],[167.408,185.555],[78.667,156.666],[42.667,252.666],[-25.333,121.999],[-156,207.333],[-128,87.333],[-224,103.333],[-142.666,28.666],[-236,-26.001],[-117.333,-40.667],[-173.333,-169.999],[-53.333,-132.667]],"c":true}]},{"t":20,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-68.074,-557.417],[68.519,-271.467],[373.18,-546.378],[217.444,-152.811],[387.064,-198.6],[226.239,30.003],[373.094,80.622],[223.049,151.937],[369.041,402.271],[91.457,230.581],[31.956,416.328],[-56.174,217.732],[-306.25,405.547],[-230.192,191.258],[-574.866,260.589],[-316.856,68.549],[-588.75,-127.199],[-278.655,-100.381],[-565.381,-540.083],[-104.895,-238.354]],"c":true}]}],"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"fl","c":{"a":0,"k":[0.956862745098,0.262745098039,0.211764705882,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[236.25,252.917],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.956970214844,0.263000488281,0.211975097656,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":9,"ix":5},"lc":1,"lj":1,"ml":5,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false}],"ip":6,"op":36,"st":6,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Layer 5 Outlines 4","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[611.666,592.334,0],"ix":2,"l":2},"a":{"a":0,"k":[236.25,252.917,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,0.369]},"t":0,"s":[30,30,100]},{"t":24,"s":[98,98,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":0,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-17.333,-252.667],[37.334,-139.334],[142.667,-211.334],[121.334,-72.574],[236,-101.999],[146.667,35.333],[210.667,84.666],[138.371,107.505],[167.408,185.555],[78.667,156.666],[42.667,252.666],[-25.333,121.999],[-156,207.333],[-128,87.333],[-224,103.333],[-142.666,28.666],[-236,-26.001],[-117.333,-40.667],[-173.333,-169.999],[-53.333,-132.667]],"c":true}]},{"t":14,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-68.074,-557.417],[68.519,-271.467],[373.18,-546.378],[217.444,-152.811],[387.064,-198.6],[226.239,30.003],[373.094,80.622],[223.049,151.937],[369.041,402.271],[91.457,230.581],[31.956,416.328],[-56.174,217.732],[-306.25,405.547],[-230.192,191.258],[-574.866,260.589],[-316.856,68.549],[-588.75,-127.199],[-278.655,-100.381],[-565.381,-540.083],[-104.895,-238.354]],"c":true}]}],"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"gf","o":{"a":0,"k":100,"ix":10},"r":1,"bm":0,"g":{"p":3,"k":{"a":0,"k":[0,1,1,1,0.491,1,0.973,0.731,1,1,0.945,0.463],"ix":9}},"s":{"a":0,"k":[0,0],"ix":5},"e":{"a":0,"k":[164.513,-154.042],"ix":6},"t":2,"h":{"a":0,"k":0,"ix":7},"a":{"a":0,"k":0,"ix":8},"nm":"Gradient Fill 1","mn":"ADBE Vector Graphic - G-Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[236.25,252.917],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":2,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false},{"ty":"st","c":{"a":0,"k":[1,0.921569824219,0.231384277344,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":8,"ix":5},"lc":1,"lj":1,"ml":5,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false}],"ip":0,"op":26,"st":0,"bm":0}]},{"id":"comp_5","nm":"explotion 2","fr":60,"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Layer 1 Outlines 3","td":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[966.5,540.5,0],"ix":2,"l":2},"a":{"a":0,"k":[289.5,279.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,0]},"t":18,"s":[30,30,100]},{"t":46,"s":[100,100,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.333,"y":0},"t":22,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-202.87,-85.551],[-57.487,-94.342],[-121.958,-271.586],[18.774,-137.279],[28.566,-217.432],[98.157,-109.45],[145.081,-163.257],[149.541,-87.031],[281.381,-105.976],[160.31,-17.4],[229.147,40.024],[129.34,43.26],[166.142,182.212],[88.009,112.807],[58.008,271.586],[20.776,128.525],[-109.56,210.522],[-44.578,83.077],[-281.381,129.257],[-73.334,-14.761]],"c":true}]},{"t":46,"s":[{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-202.87,-85.551],[-138.487,-166.342],[-121.958,-271.586],[2.774,-186.279],[28.566,-217.432],[98.157,-153.45],[145.081,-163.257],[181.541,-119.031],[281.381,-105.976],[203.31,-26.4],[229.147,40.024],[154.34,74.26],[166.142,182.212],[97.009,169.807],[58.008,271.586],[-13.224,189.525],[-109.56,210.522],[-119.578,115.077],[-281.381,129.257],[-150.334,-11.761]],"c":true}]}],"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[1,0.942260742188,0.431732177734,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[1,0.968597412109,0.692138671875,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[289.532,279.159],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":18,"op":48,"st":20,"bm":0},{"ddd":0,"ind":2,"ty":0,"nm":"explotion B","tt":2,"refId":"comp_6","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[960,540,0],"ix":2,"l":2},"a":{"a":0,"k":[960,540,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"w":1920,"h":1080,"ip":0,"op":50,"st":0,"bm":0}]},{"id":"comp_6","nm":"explotion B","fr":60,"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Layer 1 Outlines 3","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0,"y":1},"o":{"x":0.167,"y":0.167},"t":10,"s":[989.5,533.5,0],"to":[-4.833,1,0],"ti":[4.833,-1,0]},{"t":36,"s":[960.5,539.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[289.5,279.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,0]},"t":10,"s":[30,30,100]},{"t":36,"s":[100,100,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-202.87,-85.551],[-57.487,-94.342],[-121.958,-271.586],[18.774,-137.279],[28.566,-217.432],[98.157,-109.45],[145.081,-163.257],[149.541,-87.031],[281.381,-105.976],[160.31,-17.4],[229.147,40.024],[129.34,43.26],[166.142,182.212],[88.009,112.807],[58.008,271.586],[20.776,128.525],[-109.56,210.522],[-44.578,83.077],[-281.381,129.257],[-73.334,-14.761]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[1,0.942260742188,0.431732177734,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[1,0.968597412109,0.692138671875,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[289.532,279.159],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":10,"op":50,"st":10,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"Layer 1 Outlines 4","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.833,"y":0.833},"o":{"x":0.167,"y":0.167},"t":2,"s":[969,537,0],"to":[-1.417,0.417,0],"ti":[1.417,-0.417,0]},{"t":20,"s":[960.5,539.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[289.5,279.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,5.556]},"t":2,"s":[20,20,100]},{"t":28,"s":[100,100,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-202.87,-85.551],[-57.487,-94.342],[-121.958,-271.586],[18.774,-137.279],[28.566,-217.432],[98.157,-109.45],[145.081,-163.257],[149.541,-87.031],[281.381,-105.976],[160.31,-17.4],[229.147,40.024],[129.34,43.26],[166.142,182.212],[88.009,112.807],[58.008,271.586],[20.776,128.525],[-109.56,210.522],[-44.578,83.077],[-281.381,129.257],[-73.334,-14.761]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.957000014361,0.263000009574,0.211999990426,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[1,0.626999978458,0,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[289.532,279.159],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":2,"op":31,"st":2,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Layer 1 Outlines","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[960.5,539.5,0],"ix":2,"l":2},"a":{"a":0,"k":[289.5,279.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0,0,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,5.556]},"t":0,"s":[20,20,100]},{"t":26,"s":[100,100,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"o":[[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0],[0,0]],"v":[[-202.87,-85.551],[-57.487,-94.342],[-121.958,-271.586],[18.774,-137.279],[28.566,-217.432],[98.157,-109.45],[145.081,-163.257],[149.541,-87.031],[281.381,-105.976],[160.31,-17.4],[229.147,40.024],[129.34,43.26],[166.142,182.212],[88.009,112.807],[58.008,271.586],[20.776,128.525],[-109.56,210.522],[-44.578,83.077],[-281.381,129.257],[-73.334,-14.761]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.957000014361,0.263000009574,0.211999990426,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.956862745098,0.262745098039,0.211764705882,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[289.532,279.159],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":29,"st":0,"bm":0}]}],"layers":[{"ddd":0,"ind":1,"ty":4,"nm":"Layer 1 Outlines 12","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":-16,"s":[541.5,159.5,0],"to":[-5.167,-14.667,0],"ti":[5.167,14.667,0]},{"t":12,"s":[510.5,71.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":-16,"s":[11,11,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":-8,"s":[55,55,100]},{"t":20,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":5,"st":-16,"bm":0},{"ddd":0,"ind":2,"ty":4,"nm":"Layer 1 Outlines 14","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.703,"y":1},"o":{"x":0.167,"y":0.167},"t":-16,"s":[261.5,555.5,0],"to":[-8.565,0,0],"ti":[4.768,0,0]},{"t":14,"s":[181.5,555.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":-16,"s":[11,11,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":-8,"s":[72,72,100]},{"t":20,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":5,"st":-16,"bm":0},{"ddd":0,"ind":3,"ty":4,"nm":"Layer 1 Outlines 13","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":60,"s":[261.5,555.5,0],"to":[-13.333,0,0],"ti":[13.333,0,0]},{"t":90,"s":[181.5,555.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":60,"s":[11,11,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":68,"s":[72,72,100]},{"t":96,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":60,"op":76,"st":60,"bm":0},{"ddd":0,"ind":4,"ty":4,"nm":"Layer 1 Outlines 11","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":60,"s":[541.5,159.5,0],"to":[-5.167,-14.667,0],"ti":[5.167,14.667,0]},{"t":88,"s":[510.5,71.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":60,"s":[11,11,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":68,"s":[55,55,100]},{"t":96,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":60,"op":76,"st":60,"bm":0},{"ddd":0,"ind":5,"ty":4,"nm":"Layer 1 Outlines 10","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":-14,"s":[543.5,307.5,0],"to":[-7.333,-13.333,0],"ti":[7.333,13.333,0]},{"t":14,"s":[499.5,227.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":-14,"s":[64,64,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":-6,"s":[125,125,100]},{"t":14,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":5,"st":-14,"bm":0},{"ddd":0,"ind":6,"ty":4,"nm":"Layer 1 Outlines 9","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":62,"s":[543.5,307.5,0],"to":[-7.333,-13.333,0],"ti":[7.333,13.333,0]},{"t":98,"s":[499.5,227.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":62,"s":[23,23,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":72,"s":[125,125,100]},{"t":98,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":62,"op":76,"st":62,"bm":0},{"ddd":0,"ind":7,"ty":4,"nm":"Layer 4 Outlines 9","td":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[678.556,427.083,0],"ix":2,"l":2},"a":{"a":0,"k":[181.5,173.417,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.687,0.687,0.687],"y":[1,1,1]},"o":{"x":[0.169,0.169,0.169],"y":[0.234,0.234,1.278]},"t":60,"s":[50,50,100]},{"t":70,"s":[80,80,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[-50.667,0],[-13.377,-20],[-9.333,-25.917],[2.666,-58.28],[49.334,-13.344],[32,21.334],[10.777,77.334],[-25.333,26]],"o":[[33.498,2.233],[16.043,-22.667],[42.667,-7.417],[37.333,11.666],[24,48.01],[-16,44],[-68.53,-14.522],[-21.985,-33.94]],"v":[[-112.667,-108.75],[-42.043,-128.75],[39.333,-140],[118,-67.803],[124.666,25.907],[43.333,108.583],[-91.224,88.583],[-148.667,-18.75]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[181.5,173.417],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":60,"op":70,"st":60,"bm":0},{"ddd":0,"ind":8,"ty":4,"nm":"Layer 4 Outlines 8","tt":2,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[678.556,427.083,0],"ix":2,"l":2},"a":{"a":0,"k":[181.5,173.417,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.687,0.687,0.687],"y":[1,1,1]},"o":{"x":[0.169,0.169,0.169],"y":[0.234,0.234,1.278]},"t":54,"s":[50,50,100]},{"t":64,"s":[80,80,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[-50.667,0],[-13.377,-20],[-9.333,-25.917],[2.666,-58.28],[49.334,-13.344],[32,21.334],[10.777,77.334],[-25.333,26]],"o":[[33.498,2.233],[16.043,-22.667],[42.667,-7.417],[37.333,11.666],[24,48.01],[-16,44],[-68.53,-14.522],[-21.985,-33.94]],"v":[[-112.667,-108.75],[-42.043,-128.75],[39.333,-140],[118,-67.803],[124.666,25.907],[43.333,108.583],[-91.224,88.583],[-148.667,-18.75]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[181.5,173.417],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":54,"op":70,"st":54,"bm":0},{"ddd":0,"ind":9,"ty":0,"nm":"explotion_01","refId":"comp_0","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[512,512,0],"ix":2,"l":2},"a":{"a":0,"k":[512,512,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"w":1024,"h":1024,"ip":70,"op":76,"st":70,"bm":0},{"ddd":0,"ind":10,"ty":0,"nm":"smoke","refId":"comp_2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":89,"ix":10},"p":{"a":0,"k":[582,536,0],"ix":2,"l":2},"a":{"a":0,"k":[745.872,663.09,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"w":1024,"h":1024,"ip":56,"op":76,"st":20,"bm":0},{"ddd":0,"ind":11,"ty":0,"nm":"explotion_02","refId":"comp_3","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[602,406,0],"ix":2,"l":2},"a":{"a":0,"k":[512,512,0],"ix":1,"l":2},"s":{"a":0,"k":[80,80,100],"ix":6,"l":2}},"ao":0,"w":1024,"h":1024,"ip":38,"op":76,"st":38,"bm":0},{"ddd":0,"ind":12,"ty":0,"nm":"explotion 2","refId":"comp_5","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[448,562,0],"ix":2,"l":2},"a":{"a":0,"k":[960,540,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"w":1920,"h":1080,"ip":18,"op":66,"st":18,"bm":0},{"ddd":0,"ind":13,"ty":4,"nm":"Layer 4 Outlines","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[610.556,611.083,0],"ix":2,"l":2},"a":{"a":0,"k":[181.5,173.417,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.687,0.687,0.687],"y":[1,1,1]},"o":{"x":[0.169,0.169,0.169],"y":[0.141,0.141,1.278]},"t":12,"s":[50,50,100]},{"i":{"x":[0.833,0.833,0.833],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":22,"s":[100,100,100]},{"t":28,"s":[20,20,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[-50.667,0],[-13.377,-20],[-9.333,-25.917],[2.666,-58.28],[49.334,-13.344],[32,21.334],[10.777,77.334],[-25.333,26]],"o":[[33.498,2.233],[16.043,-22.667],[42.667,-7.417],[37.333,11.666],[24,48.01],[-16,44],[-68.53,-14.522],[-21.985,-33.94]],"v":[[-112.667,-108.75],[-42.043,-128.75],[39.333,-140],[118,-67.803],[124.666,25.907],[43.333,108.583],[-91.224,88.583],[-148.667,-18.75]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[181.5,173.417],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":12,"op":32,"st":12,"bm":0},{"ddd":0,"ind":14,"ty":4,"nm":"Layer 3 Outlines 2","td":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.231,"y":1},"o":{"x":0.167,"y":0.167},"t":32,"s":[496.5,445,0],"to":[-23.333,-22.333,0],"ti":[23.333,22.333,0]},{"t":68,"s":[356.5,311,0]}],"ix":2,"l":2},"a":{"a":0,"k":[79.5,72,0],"ix":1,"l":2},"s":{"a":0,"k":[102,102,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[10.567,0],[0.791,-0.1],[4.107,7.982],[7.727,2.997],[4.09,7.951],[17.25,-8.874],[2.244,-9.722],[2.544,-1.309],[-8.874,-17.251],[-17.25,8.874],[-17.25,8.875],[-0.467,0.268],[-9.648,0],[0,10.568]],"o":[[-0.818,0],[2.086,-8.056],[-4.09,-7.95],[2.055,-8.029],[-8.874,-17.25],[-9.568,4.922],[-2.662,0.644],[-17.25,8.874],[8.875,17.25],[8.875,17.25],[0.483,-0.248],[1.315,9.286],[10.567,0],[0,-10.567]],"v":[[52.344,25.946],[49.935,26.115],[47.168,1.255],[28.645,-15.414],[25.854,-40.175],[-21.448,-55.341],[-39.602,-31.988],[-47.438,-29.077],[-62.604,18.227],[-15.301,33.393],[32.002,48.558],[33.423,47.781],[52.344,64.215],[71.478,45.081]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[79.476,71.795],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":32,"op":62,"st":32,"bm":0},{"ddd":0,"ind":15,"ty":4,"nm":"Layer 3 Outlines","tt":2,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0,"y":1},"o":{"x":0.167,"y":0},"t":18,"s":[396.5,351,0],"to":[-6.667,-6.667,0],"ti":[6.667,6.667,0]},{"t":66,"s":[356.5,311,0]}],"ix":2,"l":2},"a":{"a":0,"k":[79.5,72,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[10.567,0],[0.791,-0.1],[4.107,7.982],[7.727,2.997],[4.09,7.951],[17.25,-8.874],[2.244,-9.722],[2.544,-1.309],[-8.874,-17.251],[-17.25,8.874],[-17.25,8.875],[-0.467,0.268],[-9.648,0],[0,10.568]],"o":[[-0.818,0],[2.086,-8.056],[-4.09,-7.95],[2.055,-8.029],[-8.874,-17.25],[-9.568,4.922],[-2.662,0.644],[-17.25,8.874],[8.875,17.25],[8.875,17.25],[0.483,-0.248],[1.315,9.286],[10.567,0],[0,-10.567]],"v":[[52.344,25.946],[49.935,26.115],[47.168,1.255],[28.645,-15.414],[25.854,-40.175],[-21.448,-55.341],[-39.602,-31.988],[-47.438,-29.077],[-62.604,18.227],[-15.301,33.393],[32.002,48.558],[33.423,47.781],[52.344,64.215],[71.478,45.081]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[79.476,71.795],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":18,"op":62,"st":18,"bm":0},{"ddd":0,"ind":16,"ty":4,"nm":"Layer 4 Outlines 5","td":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":361,"ix":10},"p":{"a":1,"k":[{"i":{"x":0,"y":1},"o":{"x":0.167,"y":0.167},"t":26,"s":[720.5,585.5,0],"to":[9.333,0.333,0],"ti":[-9.333,-0.333,0]},{"t":44,"s":[776.5,587.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[60.5,66.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,0.16]},"t":28,"s":[100,100,100]},{"t":44,"s":[105,105,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[19.399,0],[19.399,0],[0,-19.399],[-5.5,-6.199],[0,-8.941],[-19.399,0],[-6.443,7.619],[-2.86,0],[0,19.399]],"o":[[0,-19.399],[-19.399,0],[0,8.94],[-5.5,6.201],[0,19.399],[10.759,0],[2.661,0.645],[19.399,0],[0,-19.398]],"v":[[17.563,-23.296],[-17.563,-58.421],[-52.688,-23.296],[-43.842,0],[-52.688,23.296],[-17.563,58.421],[9.263,45.96],[17.563,46.954],[52.688,11.829]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[60.604,66.495],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":28,"op":44,"st":26,"bm":0},{"ddd":0,"ind":17,"ty":4,"nm":"Layer 4 Outlines 4","tt":2,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":361,"ix":10},"p":{"a":1,"k":[{"i":{"x":0,"y":1},"o":{"x":0.167,"y":0.167},"t":20,"s":[720.5,585.5,0],"to":[9.333,0.333,0],"ti":[-9.333,-0.333,0]},{"t":38,"s":[776.5,587.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[60.5,66.5,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[19.399,0],[19.399,0],[0,-19.399],[-5.5,-6.199],[0,-8.941],[-19.399,0],[-6.443,7.619],[-2.86,0],[0,19.399]],"o":[[0,-19.399],[-19.399,0],[0,8.94],[-5.5,6.201],[0,19.399],[10.759,0],[2.661,0.645],[19.399,0],[0,-19.398]],"v":[[17.563,-23.296],[-17.563,-58.421],[-52.688,-23.296],[-43.842,0],[-52.688,23.296],[-17.563,58.421],[9.263,45.96],[17.563,46.954],[52.688,11.829]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[60.604,66.495],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":20,"op":44,"st":20,"bm":0},{"ddd":0,"ind":18,"ty":4,"nm":"Layer 4 Outlines 6","td":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0,"y":1},"o":{"x":0.167,"y":0.167},"t":26,"s":[547.5,627.5,0],"to":[-30.667,14.667,0],"ti":[30.667,-14.667,0]},{"t":44,"s":[363.5,715.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[60.5,66.5,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[19.399,0],[19.399,0],[0,-19.399],[-5.5,-6.199],[0,-8.941],[-19.399,0],[-6.443,7.619],[-2.86,0],[0,19.399]],"o":[[0,-19.399],[-19.399,0],[0,8.94],[-5.5,6.201],[0,19.399],[10.759,0],[2.661,0.645],[19.399,0],[0,-19.398]],"v":[[17.563,-23.296],[-17.563,-58.421],[-52.688,-23.296],[-43.842,0],[-52.688,23.296],[-17.563,58.421],[9.263,45.96],[17.563,46.954],[52.688,11.829]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[60.604,66.495],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":26,"op":44,"st":30,"bm":0},{"ddd":0,"ind":19,"ty":4,"nm":"Layer 4 Outlines 2","tt":2,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0,"y":1},"o":{"x":0.167,"y":0.167},"t":18,"s":[547.5,627.5,0],"to":[-30.667,14.667,0],"ti":[30.667,-14.667,0]},{"t":36,"s":[363.5,715.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[60.5,66.5,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[19.399,0],[19.399,0],[0,-19.399],[-5.5,-6.199],[0,-8.941],[-19.399,0],[-6.443,7.619],[-2.86,0],[0,19.399]],"o":[[0,-19.399],[-19.399,0],[0,8.94],[-5.5,6.201],[0,19.399],[10.759,0],[2.661,0.645],[19.399,0],[0,-19.398]],"v":[[17.563,-23.296],[-17.563,-58.421],[-52.688,-23.296],[-43.842,0],[-52.688,23.296],[-17.563,58.421],[9.263,45.96],[17.563,46.954],[52.688,11.829]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[60.604,66.495],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":18,"op":44,"st":22,"bm":0},{"ddd":0,"ind":20,"ty":4,"nm":"Layer 1 Outlines 4","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":22,"s":[358.5,239.5,0],"to":[-6.667,-7.333,0],"ti":[6.667,7.333,0]},{"t":48,"s":[318.5,195.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,11.905]},"t":22,"s":[0,0,100]},{"i":{"x":[0.833,0.833,0.833],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":30,"s":[50,50,100]},{"t":54,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":22,"op":76,"st":22,"bm":0},{"ddd":0,"ind":21,"ty":4,"nm":"Layer 1 Outlines","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":18,"s":[892.5,559.5,0],"to":[11.333,-3.333,0],"ti":[-11.333,3.333,0]},{"t":44,"s":[960.5,539.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,16.667]},"t":18,"s":[0,0,100]},{"i":{"x":[0.833,0.833,0.833],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":26,"s":[100,100,100]},{"t":50,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":18,"op":76,"st":18,"bm":0},{"ddd":0,"ind":22,"ty":4,"nm":"Layer 4 Outlines 7","td":1,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":1,"k":[{"i":{"x":[0],"y":[1]},"o":{"x":[0.167],"y":[0.167]},"t":40,"s":[216]},{"t":72,"s":[231]}],"ix":10},"p":{"a":1,"k":[{"i":{"x":0,"y":1},"o":{"x":0.167,"y":0.167},"t":36,"s":[604.5,681.5,0],"to":[11.667,15.333,0],"ti":[-11.667,-15.333,0]},{"t":68,"s":[674.5,773.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[60.5,66.5,0],"ix":1,"l":2},"s":{"a":0,"k":[102,102,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[19.399,0],[19.399,0],[0,-19.399],[-5.5,-6.199],[0,-8.941],[-19.399,0],[-6.443,7.619],[-2.86,0],[0,19.399]],"o":[[0,-19.399],[-19.399,0],[0,8.94],[-5.5,6.201],[0,19.399],[10.759,0],[2.661,0.645],[19.399,0],[0,-19.398]],"v":[[17.563,-23.296],[-17.563,-58.421],[-52.688,-23.296],[-43.842,0],[-52.688,23.296],[-17.563,58.421],[9.263,45.96],[17.563,46.954],[52.688,11.829]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[60.604,66.495],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":36,"op":62,"st":40,"bm":0},{"ddd":0,"ind":23,"ty":4,"nm":"Layer 4 Outlines 3","tt":2,"sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":1,"k":[{"i":{"x":[0],"y":[1]},"o":{"x":[0.167],"y":[0.167]},"t":22,"s":[216]},{"t":54,"s":[231]}],"ix":10},"p":{"a":1,"k":[{"i":{"x":0,"y":1},"o":{"x":0.167,"y":0.167},"t":18,"s":[604.5,681.5,0],"to":[11.667,15.333,0],"ti":[-11.667,-15.333,0]},{"t":50,"s":[674.5,773.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[60.5,66.5,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[19.399,0],[19.399,0],[0,-19.399],[-5.5,-6.199],[0,-8.941],[-19.399,0],[-6.443,7.619],[-2.86,0],[0,19.399]],"o":[[0,-19.399],[-19.399,0],[0,8.94],[-5.5,6.201],[0,19.399],[10.759,0],[2.661,0.645],[19.399,0],[0,-19.398]],"v":[[17.563,-23.296],[-17.563,-58.421],[-52.688,-23.296],[-43.842,0],[-52.688,23.296],[-17.563,58.421],[9.263,45.96],[17.563,46.954],[52.688,11.829]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[60.604,66.495],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":18,"op":62,"st":22,"bm":0},{"ddd":0,"ind":24,"ty":4,"nm":"Layer 1 Outlines 3","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0,"y":1},"o":{"x":0.167,"y":0.167},"t":16,"s":[716.381,833.639,0],"to":[9.667,11,0],"ti":[-9.667,-11,0]},{"t":52,"s":[774.381,899.639,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":24,"s":[100,100,100]},{"t":50,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":16,"op":76,"st":16,"bm":0},{"ddd":0,"ind":25,"ty":4,"nm":"Layer 1 Outlines 5","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":12,"s":[293.118,818.203,0],"to":[-1.5,42.167,0],"ti":[25.5,-0.167,0]},{"t":56,"s":[207.118,902.203,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0.167,0.167,-2.059]},"t":12,"s":[14,14,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":24,"s":[70,70,100]},{"t":56,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":12,"op":76,"st":12,"bm":0},{"ddd":0,"ind":26,"ty":4,"nm":"Layer 1 Outlines 8","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":-22,"s":[571.5,803.5,0],"to":[-3.333,17,0],"ti":[3.333,-17,0]},{"t":6,"s":[551.5,905.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":-22,"s":[64,64,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":-14,"s":[87,87,100]},{"t":14,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":0,"op":5,"st":-22,"bm":0},{"ddd":0,"ind":27,"ty":4,"nm":"Layer 1 Outlines 7","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":54,"s":[571.5,803.5,0],"to":[-3.333,17,0],"ti":[3.333,-17,0]},{"t":82,"s":[551.5,905.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":54,"s":[64,64,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":62,"s":[87,87,100]},{"t":90,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":54,"op":76,"st":54,"bm":0},{"ddd":0,"ind":28,"ty":4,"nm":"Layer 1 Outlines 6","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":44,"s":[749.5,219.5,0],"to":[1.833,-14.667,0],"ti":[-1.833,14.667,0]},{"t":72,"s":[760.5,131.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":44,"s":[64,64,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":52,"s":[38,38,100]},{"t":80,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":44,"op":76,"st":44,"bm":0},{"ddd":0,"ind":29,"ty":4,"nm":"Layer 1 Outlines 2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":1,"k":[{"i":{"x":0.667,"y":1},"o":{"x":0.167,"y":0.167},"t":16,"s":[647.5,473.5,0],"to":[8.833,-13.667,0],"ti":[-8.833,13.667,0]},{"t":36,"s":[700.5,391.5,0]}],"ix":2,"l":2},"a":{"a":0,"k":[28.5,28.5,0],"ix":1,"l":2},"s":{"a":1,"k":[{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.167,0.167,0.167],"y":[0,0,0]},"t":16,"s":[64,64,100]},{"i":{"x":[0.667,0.667,0.667],"y":[1,1,1]},"o":{"x":[0.333,0.333,0.333],"y":[0,0,0]},"t":24,"s":[100,100,100]},{"t":44,"s":[0,0,100]}],"ix":6,"l":2}},"ao":0,"shapes":[{"ty":"gr","it":[{"ind":0,"ty":"sh","ix":1,"ks":{"a":0,"k":{"i":[[11.3,0],[0,11.3],[-11.3,0],[0,-11.3]],"o":[[-11.3,0],[0,-11.3],[11.3,0],[0,11.3]],"v":[[0,20.46],[-20.46,0],[0,-20.46],[20.46,0]],"c":true},"ix":2},"nm":"Path 1","mn":"ADBE Vector Shape - Group","hd":false},{"ty":"st","c":{"a":0,"k":[0.779999976065,0.779999976065,0.779999976065,1],"ix":3},"o":{"a":0,"k":100,"ix":4},"w":{"a":0,"k":3,"ix":5},"lc":1,"lj":1,"ml":10,"bm":0,"nm":"Stroke 1","mn":"ADBE Vector Graphic - Stroke","hd":false},{"ty":"fl","c":{"a":0,"k":[0.819999964097,0.819999964097,0.819999964097,1],"ix":4},"o":{"a":0,"k":100,"ix":5},"r":1,"bm":0,"nm":"Fill 1","mn":"ADBE Vector Graphic - Fill","hd":false},{"ty":"tr","p":{"a":0,"k":[28.367,28.33],"ix":2},"a":{"a":0,"k":[0,0],"ix":1},"s":{"a":0,"k":[100,100],"ix":3},"r":{"a":0,"k":0,"ix":6},"o":{"a":0,"k":100,"ix":7},"sk":{"a":0,"k":0,"ix":4},"sa":{"a":0,"k":0,"ix":5},"nm":"Transform"}],"nm":"Group 1","np":3,"cix":2,"bm":0,"ix":1,"mn":"ADBE Vector Group","hd":false}],"ip":16,"op":76,"st":16,"bm":0},{"ddd":0,"ind":30,"ty":0,"nm":"smoke","refId":"comp_2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[747,710,0],"ix":2,"l":2},"a":{"a":0,"k":[702.872,657.09,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"w":1024,"h":1024,"ip":18,"op":76,"st":-2,"bm":0},{"ddd":0,"ind":31,"ty":0,"nm":"smoke","refId":"comp_2","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":133,"ix":10},"p":{"a":0,"k":[294,570,0],"ix":2,"l":2},"a":{"a":0,"k":[745.872,663.09,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"w":1024,"h":1024,"ip":18,"op":76,"st":-10,"bm":0},{"ddd":0,"ind":32,"ty":0,"nm":"explotion_01","refId":"comp_0","sr":1,"ks":{"o":{"a":0,"k":100,"ix":11},"r":{"a":0,"k":0,"ix":10},"p":{"a":0,"k":[510,502,0],"ix":2,"l":2},"a":{"a":0,"k":[512,512,0],"ix":1,"l":2},"s":{"a":0,"k":[100,100,100],"ix":6,"l":2}},"ao":0,"w":1024,"h":1024,"ip":0,"op":36,"st":-6,"bm":0}],"markers":[{"tm":5,"cm":"rest","dr":0}]}</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Game Day</h1>
+      <div class="sub">Super Minds 1 · Starter–Unit 4 · clique num time para torná-lo o <b>time da vez</b></div>
+    </div>
+    <div class="row">
+      <div class="timer" id="timer">
+        <select id="timerPreset" aria-label="Duração do cronômetro">
+          <option value="30">0:30</option><option value="60" selected>1:00</option><option value="90">1:30</option>
+          <option value="120">2:00</option><option value="180">3:00</option><option value="300">5:00</option>
+        </select>
+        <span class="clock" id="clock">1:00</span>
+        <button id="timerGo" class="primary" aria-label="Iniciar ou pausar">▶</button>
+        <button id="timerReset" class="ghost" aria-label="Zerar cronômetro">↺</button>
+      </div>
+      <button id="wheelOpen" class="ghost" title="Sortear aluno (roleta)" aria-label="Sortear aluno">🎡</button>
+      <button id="editToggle" class="ghost" aria-pressed="false">Editar listas</button>
+      <button id="fullscreen" class="ghost">Tela cheia</button>
+    </div>
+  </header>
+
+  <section aria-label="Placar">
+    <div class="teams" id="teams"></div>
+    <div class="scorebar" style="margin-top:10px">
+      <div class="log" id="log"></div>
+      <div class="row">
+        <button id="undo" class="ghost">Desfazer último ponto</button>
+        <button id="addTeam" class="ghost">+ Time</button>
+        <button id="removeTeam" class="ghost">− Time</button>
+        <button id="podiumOpen" class="primary">🏆 Pódio</button>
+        <span class="confirm" id="resetWrap"><button id="resetScores" class="ghost">Zerar placar</button></span>
+        <span class="confirm teacher" id="contentWrap"><button id="resetContent" class="ghost">Restaurar conteúdo padrão</button></span>
+      </div>
+    </div>
+  </section>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="ship">Battleship</button>
+    <button role="tab" data-tab="stop">Stop</button>
+    <button role="tab" data-tab="bingo">Bingo</button>
+    <button role="tab" data-tab="ttt">Tic-Tac-Toe</button>
+    <button role="tab" data-tab="hang">Hangman</button>
+  </nav>
+
+  <!-- Batalha Naval 5x5 -->
+  <section class="panel" data-panel="ship">
+    <div class="stage">
+      <div class="bs-top">
+        <div class="bs-round" id="bsRound"></div>
+        <div class="bs-order" id="bsOrder"></div>
+      </div>
+      <div class="callout bs-q" id="bsQ" hidden>
+        <div class="tag" id="bsQTag"></div>
+        <div class="question" id="bsQText"></div>
+        <div class="answer" id="bsQAns" hidden></div>
+      </div>
+      <div class="bs-msg" id="bsMsg"></div>
+      <div class="bs-actions" id="bsAct"></div>
+      <div class="grid" id="shipGrid"></div>
+    </div>
+    <aside>
+      <div class="bs-teams" id="bsTeams"></div>
+      <div><label for="bsSetSel">Banco de perguntas (vale para a próxima “Nova partida”)</label>
+        <select id="bsSetSel"><option value="0">Partida 1</option><option value="1">Partida 2</option></select></div>
+      <div class="row">
+        <button id="bsUndo" class="ghost">Desfazer última ação</button>
+        <span class="confirm" id="bsNewWrap"><button id="bsNew">Nova partida</button></span>
+        <button id="shipPeek" class="ghost teacher">Espiar tabuleiro</button>
+      </div>
+      <div class="note"><b>Resumo:</b> o time escolhe uma casa (ex.: B4), o app revela o que havia ali e mostra a pergunta. Toda resposta tem consequência. Safe: acertou +1, errou −1. Bomba na água 💣: acertou +1 e atira no navio de outro time, errou e a bomba explode no próprio navio. Navio adversário: acertou +1 e ganha uma bomba, errou −1. Próprio navio: acertou +1 e ganha um escudo 🛡️, errou e essa parte é destruída. Fantasma roubando: acertou +1, errou −1. Afundar um navio adversário: +1. Navio afundado vai para a Gold Mine: acertou, ganha um bote; errou, vira fantasma 👻. Um time não leva duas bombas seguidas sem jogar antes.</div>
+      <div class="teacher teacher-box">
+        <div class="small muted" id="bsDeckInfo"></div>
+        <label for="bsEList">Fáceis da partida escolhida: saem em casa de água (pergunta | resposta)</label>
+        <textarea id="bsEList"></textarea>
+        <label for="bsMList">Médias da partida escolhida: saem em casa de navio (pergunta | resposta)</label>
+        <textarea id="bsMList"></textarea>
+        <label for="bsGList">Gold Mines (pergunta | resposta | segundos). As 4 primeiras são para ressurgir e a 5ª é a Extra Gold Mine final.</label>
+        <textarea id="bsGList"></textarea>
+      </div>
+    </aside>
+  </section>
+
+  <!-- Stop -->
+  <section class="panel" data-panel="stop" hidden>
+    <div class="stage">
+      <div class="callout"><div class="muted small">LETTER</div><div class="big" id="stopLetter">?</div></div>
+      <div class="row" style="justify-content:center">
+        <button class="primary" id="stopDraw">Sortear letra</button>
+        <button id="stopTimer">Sortear + iniciar cronômetro</button>
+        <button id="stopReset" class="ghost">Liberar todas as letras</button>
+      </div>
+      <div class="letters-used" id="stopUsed"></div>
+      <div class="callout"><div class="muted small" style="margin-bottom:6px">CATEGORIES</div><div class="words-line" id="stopCats"></div></div>
+    </div>
+    <aside>
+      <div class="note"><b>Pontuação:</b> resposta única = <b>10</b>, repetida = <b>5</b>, em branco ou errada = <b>0</b>. Use os botões +5 e +10 do placar.</div>
+      <div class="teacher"><label for="stopCatsIn">Categorias (uma por linha)</label><textarea id="stopCatsIn"></textarea></div>
+      <div class="teacher"><label for="stopSkip">Letras fora do sorteio</label><input id="stopSkip" value="Q X Y Z K"></div>
+    </aside>
+  </section>
+
+  <!-- Bingo -->
+  <section class="panel" data-panel="bingo" hidden>
+    <div class="stage">
+      <div class="callout bingo-now">
+        <div id="bingoSwatch"></div>
+        <div class="big" id="bingoNow">—</div>
+        <div class="words-line" id="bingoSpell"></div>
+      </div>
+      <div class="row" style="justify-content:center">
+        <button class="primary" id="bingoDraw">Sortear</button>
+        <span class="confirm" id="bingoResetWrap"><button id="bingoReset" class="ghost">Novo bingo</button></span>
+        <span class="muted small" id="bingoCount"></span>
+      </div>
+      <div class="bingo-board" id="bingoBoard"></div>
+    </div>
+    <aside>
+      <div><label for="bingoMode">Modo</label>
+        <select id="bingoMode"><option value="colors">Cores (11 cores)</option><option value="num">Números (30 entre 0 e 100)</option></select></div>
+      <div class="note"><b>Cores:</b> as 11 cores aparecem no quadro com o nome embaixo. <b>Números:</b> a cada "Novo bingo" o app sorteia 30 números entre 0 e 100 e mostra todos no quadro, para os alunos montarem a cartela. Só esses 30 saem no sorteio, com o número escrito em inglês. As casas já sorteadas ficam acesas. Quem fizer bingo: confira a cartela e pontue no placar.</div>
+    </aside>
+  </section>
+
+  <!-- Tic tac toe 5x5 com perguntas -->
+  <section class="panel" data-panel="ttt" hidden>
+    <div class="stage">
+      <div class="callout">
+        <div class="question" id="tq">Clique em “Nova pergunta”</div>
+        <div class="answer" id="ta" hidden></div>
+      </div>
+      <div class="row" style="justify-content:center">
+        <button class="primary" id="tqNext">Nova pergunta</button>
+        <button id="tqShow">Revelar resposta</button>
+      </div>
+      <div class="picker" id="tPick" hidden></div>
+      <div class="status" id="tttStatus"></div>
+      <div class="ttt" id="ttt"></div>
+    </div>
+    <aside>
+      <div class="note"><b>Como funciona:</b> a pergunta vale para todos os times. Revele a resposta, escolha qual time acertou e esse time diz o número da casa. O mesmo time pode marcar várias vezes seguidas.</div>
+      <div class="legend" id="tttLegend"></div>
+      <div><label>Pontos por sequência</label>
+        <div class="pts">
+          <div><label for="tttP3">3 em linha</label><input id="tttP3" type="number" min="0" value="2"></div>
+          <div><label for="tttP4">4 em linha</label><input id="tttP4" type="number" min="0" value="3"></div>
+          <div><label for="tttP5">5 em linha</label><input id="tttP5" type="number" min="0" value="10"></div>
+        </div></div>
+      <div class="row">
+        <button id="tttUndo" class="ghost">Desfazer última jogada</button>
+        <span class="confirm" id="tttNewWrap"><button id="tttNew">Nova partida</button></span>
+      </div>
+      <div class="teacher teacher-box"><label for="qList">Perguntas do jogo da velha (pergunta | resposta, uma por linha)</label>
+      <textarea id="qList"></textarea></div>
+      <div class="small muted" id="qCount"></div>
+    </aside>
+  </section>
+
+  <!-- Hangman -->
+  <section class="panel" data-panel="hang" hidden>
+    <div class="stage">
+      <div class="hang">
+        <svg viewBox="0 0 160 200" aria-label="Forca">
+          <line x1="10" y1="190" x2="110" y2="190"/><line x1="40" y1="190" x2="40" y2="15"/>
+          <line x1="40" y1="15" x2="115" y2="15"/><line x1="115" y1="15" x2="115" y2="38"/>
+          <circle class="part" cx="115" cy="55" r="17"/>
+          <line class="part" x1="115" y1="72" x2="115" y2="128"/>
+          <line class="part" x1="115" y1="85" x2="92" y2="108"/>
+          <line class="part" x1="115" y1="85" x2="138" y2="108"/>
+          <line class="part" x1="115" y1="128" x2="95" y2="162"/>
+          <line class="part" x1="115" y1="128" x2="135" y2="162"/>
+        </svg>
+        <div style="display:flex;flex-direction:column;gap:12px;min-width:0;flex:1">
+          <div class="slots" id="hangSlots"></div>
+          <div class="muted" style="text-align:center" id="hangHint"></div>
+          <div class="status" id="hangStatus"></div>
+        </div>
+      </div>
+      <div class="keys" id="hangKeys"></div>
+    </div>
+    <aside>
+      <div class="row"><button class="primary" id="hangRandom">Palavra aleatória da lista</button><button id="hangReveal" class="ghost">Revelar palavra</button></div>
+      <div><label for="hangSecret">Ou digite uma palavra secreta</label>
+        <div class="row" style="flex-wrap:nowrap"><input id="hangSecret" type="password" autocomplete="off" placeholder="ex.: lizard"><button id="hangUse">Usar</button></div></div>
+      <div class="teacher teacher-box"><label for="hangWords">Lista (palavra | dica)</label><textarea id="hangWords"></textarea></div>
+      <div><label for="hangPts">Pontos para quem acertar</label><input id="hangPts" type="number" min="0" value="5"></div>
+      <div class="note">Os pontos vão para o <b>time da vez</b> quando a palavra é completada. 6 erros e ninguém pontua.</div>
+    </aside>
+  </section>
+</div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const KEY="gameday-v1";
+const COLORS=["#ff6b57","#4fb3c8","#5fd38d","#ffc93c","#b98cff","#ff8fc7"];
+/* Conteúdo: Super Minds 1 (Puchta, Gerngross, Lewis-Jones), Starter "Friends" a Unit 4 "Lunchtime":
+   cumprimentos, números 1–20, cores, alfabeto, objetos da escola e comandos, brinquedos e adjetivos,
+   animais com in/on/under e I like/I don't like, comida com I have / Do we have any...? (inglês americano) */
+const CONTENT_VERSION=5;
+const EX_Q=`Say hello in English! | Hello! / Hi!
+What's your name? (answer with a sentence) | My name's ... / I'm ...
+How old are you? (answer with a sentence) | I'm ... (eight / nine / ten).
+Complete: What's ___ name? I'm Thunder. | your
+Complete: How ___ are you? I'm nine. | old
+Put in order: name / your / What's / ? | What's your name?
+Put in order: are / How / you / old / ? | How old are you?
+Who are the Super Friends? Say two names. | Whisper, Thunder, Flash, Misty
+Count in English: 6 + 4 = ? | ten
+Count in English: 3 + 5 = ? | eight
+Count in English: 9 - 2 = ? | seven
+Count in English: 10 + 1 = ? | eleven
+Count in English: 10 + 2 = ? | twelve
+Count in English: 7 + 7 = ? | fourteen
+Count in English: 9 + 9 = ? | eighteen
+Count in English: 10 + 10 = ? | twenty
+Spell the number 3 | T-H-R-E-E
+Spell the number 5 | F-I-V-E
+What color is a banana? | yellow
+What color is a frog? | green
+What color is the sky? | blue
+What color is an elephant? | gray
+Red + blue = ? | purple
+Red + yellow = ? | orange
+Red + white = ? | pink
+Blue + yellow = ? | green
+Complete: Flash's bag ___ red. | is
+Alphabet: What's after "N"? | O
+Alphabet: What's before "W"? | V
+What's this? (✏️) It's a ... | It's a pencil.
+What's this? (📖) It's a ... | It's a book.
+What's this? (🎒) It's a ... | It's a bag.
+What's this? (📏) It's a ... | It's a ruler.
+What's this? (🖊️) It's a ... | It's a pen.
+How do you say "borracha" in English? | eraser
+How do you say "estojo" in English? | pencil case
+How do you say "caderno" in English? | notebook
+How do you say "papel" in English? | paper
+How do you say "carteira (mesa da escola)" in English? | desk
+Is it a pen? (✏️) | No, it isn't. It's a pencil.
+Is it a book? (📖) | Yes, it is.
+Is it a ruler? (🎒) | No, it isn't. It's a bag.
+Complete: Open your ___, please. (book / cat) | book
+Complete: ___ at your desk, please. (Sit / Eat) | Sit
+Complete: Pass ___ a pencil, please. | me
+Put in order: bag / Open / your / please | Open your bag, please.
+Put in order: this / What's / ? | What's this?
+Do it! Stand up, please. (O time faz a ação) | (everybody stands up)
+Do it! Close your book, please. | (everybody closes their book)
+What's this? (🪁) It's a ... | It's a kite.
+What's this? (🚂) It's a ... | It's a train.
+What's this? (✈️) It's a ... | It's a plane.
+What's this? (🚲) It's a ... | It's a bike.
+What's this? (🧸) It's a ... | It's a teddy bear.
+What's this? (🤖) It's a ... | It's a robot.
+How do you say "boneca" in English? | doll
+How do you say "bola" in English? | ball
+How do you say "videogame / jogo de computador" in English? | computer game
+How do you say "monstro" in English? | monster
+How do you say "carrinho de corrida (kart)" in English? | go-kart
+Complete: It's ___ ugly monster. (a / an) | an
+Complete: It's ___ new kite. (a / an) | a
+Opposite: new ⇄ ... | old
+Opposite: beautiful ⇄ ... | ugly
+Complete: What's ___ name? His name's Ben. | his
+Complete: What's ___ name? Her name's Sue. | her
+Complete: How old is ___? She's eight. (he / she) | she
+Put in order: favorite / What's / toy / her / ? | What's her favorite toy?
+Answer: What's your favorite toy? | My favorite toy is ...
+Which one is a toy: ruler, kite, frog? | kite
+What's this? (🐸) It's a ... | It's a frog.
+What's this? (🦎) It's a ... | It's a lizard.
+What's this? (🕷️) It's a ... | It's a spider.
+What's this? (🦆) It's a ... | It's a duck.
+What's this? (🐘) It's an ... | It's an elephant.
+What's this? (🐀) It's a ... | It's a rat.
+How do you say "burro (animal)" in English? | donkey
+How do you say "cobra" in English? | snake
+How do you say "borboleta" in English? | butterfly
+Whisper's pet is a ... | spider
+The cat is ___ the bag. (dentro) | in
+The lizard is ___ the table. (em cima) | on
+The frog is ___ the chair. (embaixo) | under
+Where's the spider? (🕷️ dentro da caixa 📦) | It's in the box.
+Complete: I ___ dogs. 😀 | like
+Complete: I ___ rats. 😖 | don't like
+Answer: Do you like spiders? | Yes, I do. / No, I don't.
+Put in order: like / I / lizards / don't | I don't like lizards.
+What color is a tiger? | orange, black and white
+What color is a crocodile? | green
+Which one is an animal: duck, desk, cake? | duck
+What's this? (🍌) It's a ... | It's a banana.
+What's this? (🍎) It's an ... | It's an apple.
+What's this? (🍕) It's a ... | It's a pizza.
+What's this? (🥪) It's a ... | It's a sandwich.
+What's this? (🎂) It's a ... | It's a cake.
+How do you say "queijo" in English? | cheese
+How do you say "frango" in English? | chicken
+How do you say "cenoura" in English? | carrot
+How do you say "ervilhas" in English? | peas
+How do you say "leite" in English? | milk
+How do you say "salsicha" in English? | sausage
+How do you say "suco de laranja" in English? | orange juice
+Complete: I ___ a sandwich. (have / has) | have
+Complete: I ___ have a cake. 🙅 | don't
+Answer: Do we have any cheese? (✅) | Yes, we do.
+Answer: Do we have any apples? (❌) | No, we don't.
+Put in order: have / I / milk | I have milk.
+Put in order: have / cake / I / a / don't | I don't have a cake.
+Answer: What do you have? (🥪 + 🍎) | I have a sandwich and an apple.
+Answer: Do you like carrots? | Yes, I do. / No, I don't.
+Which one is food: pizza, plane, pen? | pizza
+Odd one out: cat, dog, banana, duck | banana
+Odd one out: pen, ruler, kite, book | kite
+Odd one out: red, blue, frog, green | frog
+Odd one out: cheese, doll, cake, milk | doll`;
+const EX_CATS="Colors\nNumbers\nSchool things\nToys\nAnimals\nFood";
+const EX_SKIP="A H I J K L Q U V W X Y Z";
+const EX_BINGO="red\nblue\ngreen\nyellow\norange\npink\npurple\nblack\nwhite\nbrown\npen\npencil\neraser\nruler\nbook\nbag\ndesk\nnotebook\npaper\npencil case\nball\ndoll\ncar\nkite\nplane\ntrain\nbike\nrobot\nmonster\nteddy bear\ngo-kart\ncomputer game\ncat\ndog\nduck\ndonkey\nelephant\nfrog\nlizard\nrat\nspider\nsnake\napple\nbanana\ncarrot\ncheese\nchicken\ncake\npizza\npeas\nsausage\nsandwich\nmilk";
+const EX_HANG="pencil | school material\neraser | school material\nruler | school material\nnotebook | school material\npencil case | school material\ndesk | school material\npurple | color\norange | color\nyellow | color\neleven | number\ntwelve | number\ntwenty | number\nkite | toy\ndoll | toy\ntrain | toy\nplane | toy\nmonster | toy\nrobot | toy\nteddy bear | toy\ngo-kart | toy\ncomputer game | toy\nfrog | animal\nlizard | animal\nspider | animal\nelephant | animal\ndonkey | animal\nduck | animal\nsnake | animal\nbutterfly | animal\nbanana | food\napple | food\nsandwich | food\ncheese | food\ncarrot | food\npizza | food\nsausage | food\nmilk | food";
+/* Banco da Batalha Naval: 2 partidas (16 fáceis, 16 médias e 5 Gold Mines cada), enviado pelo Lucas; inglês americano. */
+const EX_BSSETS=[{"easy": "How do you say \"4\" in English? | Four.\nHow do you say \"9\" in English? | Nine.\nWhat number comes after six? | Seven.\nWhat number comes before ten? | Nine.\nSpell \"BLUE\". | B – L – U – E.\nSpell \"PEN\". | P – E – N.\nSpell \"BOOK\". | B – O – O – K.\nHow do you say \"régua\" in English? | Ruler.\nHow do you say \"lápis\" in English? | Pencil.\nHow do you say \"boneca\" in English? | Doll.\nHow do you say \"trem\" in English? | Train.\nHow do you say \"gato\" in English? | Cat.\nHow do you say \"cachorro\" in English? | Dog.\nHow do you say \"vermelho\" in English? | Red.\nHow do you say \"amarelo\" in English? | Yellow.\nWhat's your name? | My name is… / I'm…", "med": "What is three plus five? Answer in English. | Eight.\nWhat is ten minus four? Answer in English. | Six.\nSpell \"TRAIN\". | T – R – A – I – N.\nSpell \"PENCIL\". | P – E – N – C – I – L.\nSpell \"RULER\". | R – U – L – E – R.\nTranslate: \"uma bola grande\". | A big ball.\nTranslate: \"um trem comprido\". | A long train.\nTranslate: \"uma boneca bonita\". | A beautiful doll.\nBen is a boy. Complete: \"What's ___ favorite toy?\" | His.\nLucy is a girl. Complete: \"What's ___ favorite toy?\" | Her.\nI show you a book and ask: \"Is it a book?\" What do you answer? | Yes, it is.\nTranslate: \"Eu gosto de gatos.\" | I like cats.\nTranslate: \"Eu não gosto de aranhas.\" | I don't like spiders.\nTranslate: \"O sapo está dentro da bolsa.\" | The frog is in the bag.\nTranslate: \"O gato está embaixo da cadeira.\" | The cat is under the chair.\nTranslate: \"O livro está sobre a carteira.\" | The book is on the desk.", "gold": "Traduza: \"Meu nome é ___, eu tenho 11 anos e minha cor favorita é cinza.\" | My name is ___, I'm eleven years old and my favorite color is gray. | 15\nTraduza: \"Com licença, abra seu livro e passe-me uma régua, por favor.\" | Excuse me, open your book and pass me a ruler, please. | 20\nTraduza: \"Eu gosto de gatos e cachorros brancos. Eu não gosto de ratos marrons.\" | I like cats and white dogs. I don't like brown rats. | 25\nTraduza: \"O lagarto está embaixo da cadeira e a aranha está dentro da mochila.\" | The lizard is under the chair and the spider is in the bag. | 30\nTraduza: \"O brinquedo favorito dela é uma boneca rosa bonita e o brinquedo favorito dele é um carro vermelho novo.\" | Her favorite toy is a beautiful pink doll and his favorite toy is a new red car. | 50"}, {"easy": "How do you say \"2\" in English? | Two.\nHow do you say \"7\" in English? | Seven.\nWhat number comes after eight? | Nine.\nWhat number comes before five? | Four.\nSpell \"RED\". | R – E – D.\nSpell \"DOG\". | D – O – G.\nSpell \"CAT\". | C – A – T.\nHow do you say \"livro\" in English? | Book.\nHow do you say \"caneta\" in English? | Pen.\nHow do you say \"bola\" in English? | Ball.\nHow do you say \"aranha\" in English? | Spider.\nHow do you say \"rato\" in English? | Rat.\nHow do you say \"verde\" in English? | Green.\nHow do you say \"rosa\" in English? | Pink.\nHow do you say \"preto\" in English? | Black.\nHow do you say \"Abra seu livro\" in English? | Open your book.", "med": "What is four plus five? Answer in English. | Nine.\nWhat is nine minus six? Answer in English. | Three.\nWhat is two plus six? Answer in English. | Eight.\nSpell \"SPIDER\". | S – P – I – D – E – R.\nSpell \"DOLL\". | D – O – L – L.\nSpell \"YELLOW\". | Y – E – L – L – O – W.\nTranslate: \"uma bola pequena\". | A small ball.\nTranslate: \"um carro vermelho\". | A red car.\nTranslate: \"um cachorro preto\". | A black dog.\nTranslate: \"uma boneca rosa\". | A pink doll.\nTom is a boy. Complete: \"___ favorite color is blue.\" | His.\nAnna is a girl. Complete: \"___ favorite toy is a doll.\" | Her.\nTranslate: \"O rato está dentro da caixa.\" | The rat is in the box.\nTranslate: \"A aranha está sobre o livro.\" | The spider is on the book.\nTranslate: \"Eu gosto de cachorros brancos.\" | I like white dogs.\nTranslate: \"Eu não gosto de ratos.\" | I don't like rats.", "gold": "Traduza: \"Meu nome é Lucas, eu tenho oito anos e minha cor favorita é azul.\" | My name is Lucas, I'm eight years old and my favorite color is blue. | 15\nTraduza: \"Feche seu livro e passe-me um lápis e uma régua, por favor.\" | Close your book and pass me a pencil and a ruler, please. | 20\nTraduza: \"Eu gosto de gatos pretos e cachorros brancos, mas não gosto de aranhas.\" | I like black cats and white dogs, but I don't like spiders. | 25\nTraduza: \"O rato está embaixo da cadeira, o gato está sobre a carteira e o sapo está dentro da bolsa.\" | The rat is under the chair, the cat is on the desk and the frog is in the bag. | 30\nTraduza: \"O brinquedo favorito dela é uma boneca rosa pequena, o brinquedo favorito dele é um trem comprido e minha cor favorita é verde.\" | Her favorite toy is a small pink doll, his favorite toy is a long train and my favorite color is green. | 50"}];
+const content=()=>({q:EX_Q,bsSets:JSON.parse(JSON.stringify(EX_BSSETS)),bsSet:0,cats:EX_CATS,skip:EX_SKIP,bingoWords:EX_BINGO,hangWords:EX_HANG,cv:CONTENT_VERSION});
+let S;
+const def=()=>({teams:[{n:"Red Team",s:0},{n:"Blue Team",s:0},{n:"Green Team",s:0},{n:"Yellow Team",s:0}],active:0,hist:[],tab:"ship",bingoMode:"colors",...content()});
+let saved={}; try{saved=JSON.parse(localStorage.getItem(KEY)||"{}")||{}}catch(e){}
+S=Object.assign(def(),saved);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+/* Dados salvos com conteúdo antigo: troca só o conteúdo dos jogos, mantém times e placar. */
+if((saved.cv||1)<CONTENT_VERSION){
+  /* v3 → v4 só mudou as dicas da forca: troca só essa lista e mantém o resto que o professor editou. */
+  /* v4 → v5: inglês britânico → americano. Troca só os termos, mantendo o que o professor editou. */
+  const US=[["What colour is", "What color is"], ["| grey", "| gray"], ["Colours\n", "Colors\n"], ["favourite", "favorite"], ["How do you say \"borracha\" in English? | rubber (eraser)", "How do you say \"borracha\" in English? | eraser"], ["\nrubber\n", "\neraser\n"], ["\nrubber | ", "\neraser | "], ["Complete: I've ___ a sandwich. | got", "Complete: I ___ a sandwich. (have / has) | have"], ["Complete: I ___ got a cake. 🙅 | haven't", "Complete: I ___ have a cake. 🙅 | don't"], ["Answer: Have we got any cheese? (✅) | Yes, we have.", "Answer: Do we have any cheese? (✅) | Yes, we do."], ["Answer: Have we got any apples? (❌) | No, we haven't.", "Answer: Do we have any apples? (❌) | No, we don't."], ["Put in order: got / I've / milk | I've got milk.", "Put in order: have / I / milk | I have milk."], ["Put in order: got / cake / I / a / haven't | I haven't got a cake.", "Put in order: have / cake / I / a / don't | I don't have a cake."], ["Answer: What have you got? (🥪 + 🍎) | I've got a sandwich and an apple.", "Answer: What do you have? (🥪 + 🍎) | I have a sandwich and an apple."]];
+  const toUS=t=>US.reduce((a,[o,n])=>a.split(o).join(n),"\n"+(t||"")+"\n").slice(1,-1);
+  if(saved.cv===3) S.hangWords=EX_HANG;
+  if(saved.cv>=3){ ["q","cats","bingoWords","hangWords"].forEach(k=>S[k]=toUS(S[k])); S.cv=CONTENT_VERSION; }
+  else Object.assign(S,content());
+  save(); }
+
+/* ---------- scoreboard ---------- */
+function award(i,p,why){ if(i==null||!S.teams[i]) return; S.teams[i].s+=p; S.hist.push({i,p,why:why||""}); if(S.hist.length>200)S.hist.shift(); save(); renderTeams(); }
+function renderTeams(){
+  const max=Math.max(...S.teams.map(t=>t.s));
+  const el=$("#teams"); el.innerHTML="";
+  S.teams.forEach((t,i)=>{
+    const d=document.createElement("div"); d.className="team"+(i===S.active?" active":"");
+    d.innerHTML=`<span class="stripe" style="background:${COLORS[i%COLORS.length]}"></span>
+      ${t.s>0&&t.s===max?'<span class="crown">1º</span>':""}
+      <input class="name" id="team-name-${i}" value="${t.n.replace(/"/g,"&quot;")}" aria-label="Nome do time">
+      <div class="tag">${i===S.active?"time da vez":""}</div>
+      <div class="score">${t.s}</div>${symSvg(i,"big")}
+      <div class="btns"><button data-p="1">+1</button><button data-p="5">+5</button><button data-p="10">+10</button><button class="minus" data-p="-1">−1</button></div>`;
+    d.addEventListener("click",e=>{ if(e.target.closest("button,input"))return; S.active=i; save(); renderTeams(); });
+    d.querySelector(".name").addEventListener("input",e=>{t.n=e.target.value; save(); fillTeamSelects(); });
+    d.querySelectorAll(".btns button").forEach(b=>b.addEventListener("click",()=>award(i,+b.dataset.p,"placar")));
+    el.appendChild(d);
+  });
+  const h=S.hist[S.hist.length-1];
+  $("#log").textContent=h?`Último: ${h.p>0?"+":""}${h.p} para ${S.teams[h.i]?.n||"?"}${h.why&&h.why!=="placar"?" ("+h.why+")":""}`:"Nenhum ponto ainda.";
+  fillTeamSelects();
+}
+$("#undo").onclick=()=>{const h=S.hist.pop(); if(h&&S.teams[h.i]) S.teams[h.i].s-=h.p; save(); renderTeams();};
+$("#addTeam").onclick=()=>{ if(S.teams.length>=6)return; S.teams.push({n:"Team "+(S.teams.length+1),s:0}); save(); renderTeams(); };
+$("#removeTeam").onclick=()=>{ if(S.teams.length<=2)return; S.teams.pop(); S.hist=S.hist.filter(h=>h.i<S.teams.length); if(S.active>=S.teams.length)S.active=0; save(); renderTeams(); };
+function confirmBtn(wrap,label,fn){
+  const w=$(wrap); const orig=w.innerHTML;
+  w.innerHTML=`<span class="small muted">${label}</span><button class="primary" data-y>Sim</button><button class="ghost" data-n>Não</button>`;
+  w.querySelector("[data-y]").onclick=()=>{fn(); w.innerHTML=orig; rebind();};
+  w.querySelector("[data-n]").onclick=()=>{w.innerHTML=orig; rebind();};
+}
+function rebind(){
+  $("#resetScores").onclick=()=>confirmBtn("#resetWrap","Zerar todos os pontos?",()=>{S.teams.forEach(t=>t.s=0);S.hist=[];save();renderTeams();});
+  $("#bingoReset").onclick=()=>confirmBtn("#bingoResetWrap","Começar um bingo novo?",bingoReset);
+  $("#bsNew").onclick=()=>confirmBtn("#bsNewWrap","Começar uma batalha nova?",()=>{bsNewGame(); save(); renderBS();});
+  $("#tttNew").onclick=()=>confirmBtn("#tttNewWrap","Apagar o tabuleiro?",tttReset);
+  $("#resetContent").onclick=()=>confirmBtn("#contentWrap","Trocar perguntas e listas pelo padrão?",restoreContent);
+}
+
+/* ---------- timer ---------- */
+let tLeft=60,tRun=null;
+const fmt=s=>Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+function tPaint(){ $("#clock").textContent=fmt(tLeft); $("#timer").classList.toggle("urgent",tLeft<=10&&tLeft>0); $("#timerGo").textContent=tRun?"❚❚":"▶"; }
+function beep(){ try{const a=new (window.AudioContext||window.webkitAudioContext)(); [0,.25,.5].forEach(t=>{const o=a.createOscillator(),g=a.createGain();o.frequency.value=880;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(.2,a.currentTime+t);o.start(a.currentTime+t);o.stop(a.currentTime+t+.18);});}catch(e){} }
+function tStart(){ if(tRun)return; if(tLeft<=0)tLeft=+$("#timerPreset").value; $("#timer").classList.remove("done");
+  tRun=setInterval(()=>{tLeft--; if(tLeft<=0){tLeft=0;clearInterval(tRun);tRun=null;$("#timer").classList.add("done");beep();} tPaint();},1000); tPaint(); }
+function tStop(){ clearInterval(tRun); tRun=null; tPaint(); }
+$("#timerGo").onclick=()=>tRun?tStop():tStart();
+$("#timerReset").onclick=()=>{tStop(); tLeft=+$("#timerPreset").value; $("#timer").classList.remove("done"); tPaint();};
+$("#timerPreset").onchange=()=>{ if(!tRun){tLeft=+$("#timerPreset").value; tPaint();} };
+$("#fullscreen").onclick=()=>{ try{ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen().catch(()=>{}); }catch(e){} };
+
+/* ---------- animações ---------- */
+/* fxMark guarda qual quadrado acabou de ser escolhido; cada render reaplica a animação com o tempo já
+   decorrido, então ela continua mesmo se o jogo redesenhar o tabuleiro no meio. */
+const FX={};
+function fxMark(key,id){ FX[key]={id,t0:performance.now()}; }
+function fxApply(key,id,el){ const f=FX[key]; if(!el||!f||f.id!==id)return; const age=performance.now()-f.t0;
+  if(age>750){ delete FX[key]; return; } el.classList.add("fx-drop"); el.style.animationDelay=-age+"ms"; }
+let BOOM=null; try{ BOOM=JSON.parse(document.getElementById("boomData").textContent); }catch(e){}
+function boomAt(el){ if(!el)return; const r=el.getBoundingClientRect(), z=Math.max(r.width,r.height)*2.4, d=document.createElement("div");
+  d.className="fx-boom"; Object.assign(d.style,{left:r.left+r.width/2-z/2+"px",top:r.top+r.height/2-z/2+"px",width:z+"px",height:z+"px"});
+  document.body.appendChild(d);
+  if(window.lottie&&BOOM){ const a=lottie.loadAnimation({container:d,renderer:"svg",loop:false,autoplay:true,animationData:BOOM});
+    a.addEventListener("complete",()=>{a.destroy(); d.remove();}); setTimeout(()=>d.remove(),3000); }
+  else { d.classList.add("fb"); d.textContent="💥"; setTimeout(()=>d.remove(),900); } }
+
+/* ---------- tabs ---------- */
+function showTab(t){ S.tab=t; save(); $$("#tabs button").forEach(b=>b.setAttribute("aria-selected",b.dataset.tab===t)); $$("[data-panel]").forEach(p=>p.hidden=p.dataset.panel!==t); }
+$$("#tabs button").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+
+/* ---------- batalha naval 5x5 ---------- */
+/* 4 times (os 4 primeiros do placar), um navio de 3 casas cada; 13 casas de água: 9 Safe e 4 bombas (wb).
+   O estado inteiro fica em S.bs; cada ação guarda uma cópia em bsSnaps para o "Desfazer". */
+const BN=5, BROWS="ABCDE";
+const BS_ORDER=[[0,1,2,3],[1,2,3,0],[2,3,0,1],[3,0,1,2],[0,1,2,3]];
+const esc=t=>String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+const tnm=i=>`${symSvg(i)} ${esc(S.teams[i]?.n||"Time "+(i+1))}`;
+const cname=i=>BROWS[Math.floor(i/BN)]+(i%BN+1);
+let peek=false, bsSnaps=[], bsBoom=null;
+function parseLines(txt){ return (txt||"").split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{const p=l.split("|").map(x=>x.trim()); return {q:p[0],a:p[1]||"",sec:+p[2]||0};}); }
+function parseQ(){ return parseLines(S.q); }
+function bsNewGame(){
+  let cells;
+  do{
+    cells=[...Array(BN*BN)].map(()=>({k:"safe"}));
+    for(let t=0;t<4;t++) for(let tries=0;tries<300;tries++){
+      const h=Math.random()<.5, r=Math.floor(Math.random()*(h?BN:BN-2)), c=Math.floor(Math.random()*(h?BN-2:BN));
+      const idx=[0,1,2].map(k=>h?r*BN+c+k:(r+k)*BN+c);
+      if(idx.some(i=>cells[i].k!=="safe"))continue;
+      idx.forEach(i=>cells[i]={k:"ship",t,v:"main"}); break;
+    }
+  } while(cells.filter(c=>c.k==="ship").length!==12);
+  const water=cells.map((c,i)=>c.k==="safe"?i:-1).filter(i=>i>=0).sort(()=>Math.random()-.5);
+  water.slice(0,4).forEach(i=>cells[i]={k:"wb"});
+  cells.forEach(c=>{c.exp=false;c.dead=false;c.sh=false;});
+  S.bs={cells,teams:[0,1,2,3].map(()=>({st:"ship",prot:false,stole:[]})),round:1,slot:0,phase:"pick",gi:0,set:S.bsSet||0,decks:null,
+    cur:null,who:null,q:null,ans:false,ghost:null,victim:null,finalOk:[],msg:""};
+  bsSnaps=[]; bsDecks(); bsStartTurn();
+}
+const B=()=>S.bs;
+const turnTeam=()=>BS_ORDER[B().round-1][B().slot];
+const alive=()=>[0,1,2,3].filter(t=>B().teams[t].st!=="ghost");
+function bsSnap(){ bsSnaps.push({bs:JSON.stringify(S.bs),scores:S.teams.map(t=>t.s),hist:S.hist.length}); if(bsSnaps.length>80)bsSnaps.shift(); }
+function setTimer(sec){ if(!sec)return; tStop(); tLeft=sec; $("#timer").classList.remove("done"); tPaint(); }
+function bsStartTurn(){ const b=B(), t=turnTeam(); b.teams[t].prot=false; b.phase="pick"; b.q=null; b.ans=false; b.cur=null;
+  b.msg=`Vez de ${tnm(t)}: escolham uma casa!`; }
+function bsAdvance(){ const b=B();
+  if(alive().length<=1) return bsFinal();
+  for(;;){ b.slot++; if(b.slot>3){b.slot=0;b.round++;} if(b.round>5) return bsFinal(); if(b.teams[turnTeam()].st!=="ghost")break; }
+  bsStartTurn(); }
+/* Fáceis para casas de água (Safe/bomba), médias para casas de navio. Cada baralho é embaralhado
+   no início da partida e só repete quando acabar. */
+const bsSetData=()=>S.bsSets[B().set]||S.bsSets[0];
+function shuffled(n){ return [...Array(n)].map((_,i)=>i).sort(()=>Math.random()-.5); }
+function bsDecks(){ const d=bsSetData(); B().decks={easy:shuffled(parseLines(d.easy).length),med:shuffled(parseLines(d.med).length)}; }
+function loadQ(kind){ const b=B(), d=bsSetData();
+  if(kind==="easy"||kind==="med"){ if(!b.decks) bsDecks();
+    const L=parseLines(d[kind]); if(!L.length){b.q={q:"Adicione perguntas em “Editar listas”.",a:""};b.ans=false;return;}
+    let again=false; if(!b.decks[kind].length||b.decks[kind].some(i=>i>=L.length)){ b.decks[kind]=shuffled(L.length); again=true; }
+    const q=L[b.decks[kind].pop()];
+    b.q={...q,tag:`${kind==="easy"?"Fácil":"Média"} · Partida ${b.set+1}${again?" · baralho reembaralhado":""}`}; }
+  else { const L=parseLines(d.gold), n=kind==="final"?4:b.gi; const q=L[n];
+    if(kind!=="final") b.gi++;
+    b.q=q?{...q,tag:kind==="final"?`👑 Extra Gold Mine final · vale +2${q.sec?` · ${q.sec} segundos`:""}`:`⛏️ Gold Mine ${n+1}${q.sec?` · ${q.sec} segundos`:""}`,gold:true}:null;
+    if(q) setTimer(q.sec); }
+  b.ans=false; }
+function bsPick(i){ const b=B(), c=b.cells[i], t=turnTeam(); if(b.phase!=="pick"||c.exp)return; bsSnap();
+  c.exp=true; b.cur=i; b.who=t; fxMark("bs",i);
+  if(c.k==="safe") b.msg=`${cname(i)}: água. SAFE!`;
+  else if(c.k==="wb") b.msg=`${cname(i)}: BOMBA 💣 na água! Acertem para atirar nos outros; errem e ela explode no seu navio.`;
+  else if(c.t===t) b.msg=`${cname(i)}: é o seu próprio ${c.v==="boat"?"bote":"navio"}!`;
+  else b.msg=`${cname(i)}: ${c.v==="boat"?"bote":"navio"} de ${tnm(c.t)}!`;
+  loadQ(c.k==="ship"?"med":"easy"); b.phase="answer"; renderBS(); }
+function bombTargets(){ const b=B(); return b.cells.map((c,i)=>i).filter(i=>{ const c=b.cells[i];
+  return c.k==="ship"&&c.exp&&!c.dead&&c.t!==b.who&&!b.teams[c.t].prot&&b.teams[c.t].st!=="ghost"; }); }
+function bsRight(){ const b=B(), t=b.who, c=b.cells[b.cur]; bsSnap(); award(t,1,"batalha naval");
+  if(c.k==="safe"){ b.msg=`${tnm(t)}: +1!`; b.phase="next"; }
+  else if(c.t===t&&c.k==="ship"){ c.sh=true; b.msg=`${tnm(t)}: +1 e ganhou um ESCUDO 🛡️ em ${cname(b.cur)}!`; b.phase="next"; }
+  else if(bombTargets().length){ b.msg=`${tnm(t)}: +1 e ${c.k==="wb"?"a BOMBA 💣 é de vocês":"ganhou uma BOMBA 💣"}! Escolham o alvo.`; b.phase="bomb"; }
+  else { b.msg=`${tnm(t)}: +1! A bomba não tem alvo disponível agora.`; b.phase="next"; }
+  renderBS(); }
+/* Errar sempre custa algo: −1 na Safe e no navio adversário; dano no próprio navio na bomba da água e no próprio navio. */
+function bsWrong(){ const b=B(), t=b.who, c=b.cells[b.cur]; bsSnap(); b.phase="next";
+  if(c.k==="wb"){ const own=b.cells.map((x,i)=>i).filter(i=>{ const x=b.cells[i]; return x.k==="ship"&&x.t===t&&!x.dead&&x.v===(b.teams[t].st==="boat"?"boat":"main"); });
+    if(own.length){ const i=own[Math.floor(Math.random()*own.length)]; hit(i,null,`💥 ${tnm(t)} errou e a bomba explodiu no próprio ${b.teams[t].st==="boat"?"bote":"navio"}, em ${cname(i)}! `); }
+    else { award(t,-1,"batalha naval: errou"); b.msg=`${tnm(t)}: errou. −1.`; } }
+  else if(c.k==="ship"&&c.t===t&&!c.dead) hit(b.cur,null,`💥 ${tnm(t)} errou e ${cname(b.cur)} do próprio navio foi destruída! `);
+  else { award(t,-1,"batalha naval: errou"); b.msg=`${tnm(t)}: errou. −1.`; }
+  if(b.phase==="next"){ const g=[0,1,2,3].filter(x=>b.teams[x].st==="ghost"&&!b.teams[x].stole.includes(t));
+    if(g.length){ b.phase="steal"; b.msg+=" Algum fantasma quer roubar?"; } }
+  renderBS(); }
+function bsSteal(g){ const b=B(); bsSnap(); b.ghost=g; b.teams[g].stole.push(b.who); b.phase="stealq"; b.msg=`👻 ${tnm(g)} tenta roubar!`; renderBS(); }
+function bsStealResult(ok){ const b=B(); bsSnap(); if(ok){ award(b.ghost,1,"fantasma roubou"); b.msg=`👻 ${tnm(b.ghost)} roubou +1!`; } else { award(b.ghost,-1,"fantasma errou"); b.msg=`👻 ${tnm(b.ghost)} errou: −1.`; } b.phase="next"; renderBS(); }
+function bsBomb(i){ const b=B(); if(b.phase!=="bomb"||!bombTargets().includes(i))return; bsSnap();
+  b.teams[b.cells[i].t].prot=true; hit(i,b.who,""); renderBS(); }
+/* Dano numa parte de navio/bote. by = time que atirou (ganha +1 se afundar) ou null quando o dano é no próprio navio. */
+function hit(i,by,pre){ const b=B(), c=b.cells[i], v=c.t; c.exp=true; b.phase="next"; bsBoom=i;
+  if(c.sh){ c.sh=false; b.msg=pre+`💣 ${cname(i)}: o escudo de ${tnm(v)} quebrou! O navio continua vivo.`; return; }
+  c.dead=true; b.msg=pre+(by!=null?`💣 ${cname(i)} destruída!`:"");
+  const parts=b.cells.filter(x=>x.k==="ship"&&x.t===v&&x.v===c.v);
+  if(!parts.every(x=>x.dead)) return;
+  if(by!=null) award(by,1,"afundou navio");
+  const plus=by!=null?` ${tnm(by)} +1.`:"";
+  if(c.v==="boat"){ b.teams[v].st="ghost"; b.msg=pre+`O bote de ${tnm(v)} afundou! Agora é um time fantasma 👻.`+plus; }
+  else { b.teams[v].st="sunk"; b.victim=v; loadQ("gold");
+    if(b.q){ b.phase="gold"; b.msg=pre+`O navio de ${tnm(v)} afundou!`+plus+` GOLD MINE para ${tnm(v)}!`; }
+    else { b.teams[v].st="ghost"; b.msg=pre+`O navio de ${tnm(v)} afundou e virou fantasma 👻.`; } } }
+function bsGold(ok){ const b=B(), v=b.victim; bsSnap(); tStop();
+  if(ok){ let free=b.cells.map((c,i)=>i).filter(i=>b.cells[i].k!=="ship"&&!b.cells[i].exp);
+    if(!free.length) free=b.cells.map((c,i)=>i).filter(i=>b.cells[i].k!=="ship");
+    const i=free[Math.floor(Math.random()*free.length)]; b.cells[i]={k:"ship",t:v,v:"boat",exp:false,dead:false,sh:false};
+    b.teams[v].st="boat"; b.msg=`⛏️ ${tnm(v)} acertou e ganhou um BOTE 🛟 escondido no mapa!`; }
+  else { b.teams[v].st="ghost"; b.msg=`${tnm(v)} errou e virou um time fantasma 👻.`; }
+  b.phase="next"; b.q=null; renderBS(); }
+function bsFinal(){ const b=B(); b.phase="final"; b.finalOk=[]; loadQ("final"); b.msg="Todos os times participam, inclusive os fantasmas!"; }
+function bsEnd(){ const b=B(); bsSnap(); tStop();
+  b.finalOk.forEach(t=>award(t,2,"Extra Gold Mine"));
+  const lines=[];
+  [0,1,2,3].forEach(t=>{ const st=b.teams[t].st;
+    if(st==="ship"){ award(t,2,"terminou com navio"); lines.push(`${tnm(t)} terminou com navio: +2`); }
+    else if(st==="boat"){ award(t,1,"terminou no bote"); lines.push(`${tnm(t)} terminou no bote: +1`); } });
+  b.phase="over"; b.q=null; b.msg="🏁 Fim da batalha! "+(lines.join(" · ")||"Nenhum time sobreviveu."); renderBS(); }
+function bsAction(fn){ return ()=>{ fn(); save(); renderBS(); }; }
+function renderBS(){
+  const b=B(), ok4=S.teams.length>=4;
+  $("#bsRound").textContent=(["final","over"].includes(b.phase)?"Final":`Rodada ${b.round} de 5`)+` · Partida ${(b.set||0)+1}`;
+  if(b.decks) $("#bsDeckInfo").textContent=`Nesta partida ainda restam ${b.decks.easy.length} fáceis e ${b.decks.med.length} médias sem repetir.`;
+  $("#bsOrder").innerHTML=["final","over"].includes(b.phase)?"":BS_ORDER[b.round-1].map((t,k)=>`<span class="${k===b.slot?"now":k<b.slot?"done":""} ${b.teams[t].st==="ghost"?"ghost":""}">${tnm(t)}</span>`).join("");
+  /* pergunta */
+  const q=b.q; $("#bsQ").hidden=!q; $("#bsQ").classList.toggle("gold",!!q?.gold);
+  if(q){ $("#bsQTag").textContent=q.tag||""; $("#bsQText").textContent=q.q; $("#bsQAns").textContent=q.a||"(sem resposta cadastrada)"; $("#bsQAns").hidden=!b.ans; }
+  $("#bsMsg").innerHTML=ok4?b.msg:"A Batalha Naval precisa de 4 times. Use “+ Time” no placar.";
+  /* botões */
+  const A=[]; const btn=(label,fn,cls="")=>A.push([label,fn,cls]);
+  const reveal=()=>{ if(q&&!b.ans) btn("Revelar resposta",()=>{b.ans=true;}); };
+  if(b.phase==="answer"){ btn("✓ Acertou",bsRight,"ok"); btn("✗ Errou",bsWrong,"bad"); reveal(); }
+  else if(b.phase==="steal"){ const g=[0,1,2,3].filter(x=>b.teams[x].st==="ghost"&&!b.teams[x].stole.includes(b.who));
+    g.forEach(x=>btn(`👻 ${tnm(x)}: STEAL!`,()=>bsSteal(x)));
+    if(g.length>1) btn("🎲 Sortear fantasma",()=>bsSteal(g[Math.floor(Math.random()*g.length)]));
+    btn("Ninguém rouba",()=>{bsSnap(); b.phase="next"; b.msg="Ninguém roubou.";},"ghost"); }
+  else if(b.phase==="stealq"){ btn("✓ Fantasma acertou",()=>bsStealResult(true),"ok"); btn("✗ Fantasma errou",()=>bsStealResult(false),"bad"); reveal(); }
+  else if(b.phase==="bomb"){ btn("Não usar a bomba",()=>{bsSnap(); b.phase="next"; b.msg="A bomba não foi usada.";},"ghost"); }
+  else if(b.phase==="gold"){ btn("⏱ Iniciar tempo",()=>{tStart();}); btn("✓ Acertou: ganha um bote",()=>bsGold(true),"ok"); btn("✗ Errou: vira fantasma",()=>bsGold(false),"bad"); reveal(); }
+  else if(b.phase==="next"){ reveal(); btn("Próximo turno ▶",()=>{bsSnap(); bsAdvance();},"primary"); }
+  else if(b.phase==="final"){ btn("⏱ Iniciar tempo",()=>{tStart();});
+    [0,1,2,3].forEach(t=>btn(`${b.finalOk.includes(t)?"✓":"○"} ${tnm(t)}`,()=>{ b.finalOk=b.finalOk.includes(t)?b.finalOk.filter(x=>x!==t):[...b.finalOk,t]; },b.finalOk.includes(t)?"on":""));
+    reveal(); btn("Encerrar e dar os pontos",bsEnd,"primary"); }
+  const act=$("#bsAct"); act.innerHTML=""; if(ok4) A.forEach(([l,fn,cls])=>{ const e=document.createElement("button"); e.innerHTML=l; if(cls)e.className=cls; e.onclick=bsAction(fn); act.appendChild(e); });
+  /* tabuleiro */
+  const g=$("#shipGrid"); g.innerHTML='<span></span>'+[...Array(BN)].map((_,c)=>`<span class="head">${c+1}</span>`).join("");
+  const targets=b.phase==="bomb"?bombTargets():[];
+  b.cells.forEach((c,i)=>{
+    if(i%BN===0) g.insertAdjacentHTML("beforeend",`<span class="head">${BROWS[i/BN]}</span>`);
+    const e=document.createElement("button"); let cls="cell", html=cname(i);
+    if(c.exp){ if(c.k==="safe"){cls+=" safe"; html="SAFE";} else if(c.k==="wb"){cls+=" wb"; html="💣";}
+      else { cls+=" ship"+(c.dead?" dead":""); html=symSvg(c.t)+(c.sh?'<span class="shield">🛡️</span>':""); } }
+    else if(peek&&document.body.classList.contains("editing")) html+=`<span class="peek">${c.k==="ship"?symSvg(c.t):c.k==="wb"?"💣":""}</span>`;
+    const can=ok4&&((b.phase==="pick"&&!c.exp)||targets.includes(i));
+    if(b.phase==="pick"&&!c.exp) cls+=" pick"; if(targets.includes(i)) cls+=" target"; if(i===b.cur&&b.phase!=="pick") cls+=" last";
+    e.className=cls; e.innerHTML=html; e.disabled=!can; e.setAttribute("aria-label",cname(i)); fxApply("bs",i,e);
+    e.onclick=()=>{ if(b.phase==="pick") bsPick(i); else if(b.phase==="bomb") bsBomb(i); save(); };
+    g.appendChild(e); });
+  if(bsBoom!=null){ const i=bsBoom; bsBoom=null; requestAnimationFrame(()=>boomAt($$("#shipGrid button")[i])); }
+  /* times */
+  $("#bsTeams").innerHTML=[0,1,2,3].map(t=>{ const s=b.teams[t]; if(!S.teams[t])return"";
+    const main=b.cells.filter(c=>c.k==="ship"&&c.t===t&&c.v==="main");
+    const st=s.st==="ship"?`Navio <span class="parts">${main.map(c=>c.dead?"□":"■").join("")}</span>`:s.st==="boat"?"Bote 🛟":s.st==="sunk"?"Afundado: Gold Mine":"👻 Fantasma";
+    return `<div class="bs-team ${s.st==="ghost"?"ghosted":""}">${symSvg(t)}<b>${esc(S.teams[t].n)}</b><div class="st">${st}${s.prot&&s.st!=="ghost"?" · sem bomba até jogar":""}</div></div>`; }).join("");
+}
+$("#bsUndo").onclick=()=>{ const s=bsSnaps.pop(); if(!s)return; S.bs=JSON.parse(s.bs); S.teams.forEach((t,i)=>{ if(s.scores[i]!=null)t.s=s.scores[i]; }); S.hist.length=Math.min(S.hist.length,s.hist); save(); renderTeams(); renderBS(); };
+$("#shipPeek").onclick=()=>{peek=!peek; $("#shipPeek").textContent=peek?"Esconder tabuleiro":"Espiar tabuleiro"; renderBS();};
+function bsLoadEditors(){ const d=S.bsSets[S.bsSet]; $("#bsSetSel").value=String(S.bsSet); $("#bsEList").value=d.easy; $("#bsMList").value=d.med; $("#bsGList").value=d.gold; }
+[["#bsEList","easy"],["#bsMList","med"],["#bsGList","gold"]].forEach(([id,k])=>$(id).oninput=e=>{ S.bsSets[S.bsSet][k]=e.target.value; save(); });
+$("#bsSetSel").onchange=e=>{ S.bsSet=+e.target.value; save(); bsLoadEditors(); };
+if(!Array.isArray(S.bsSets)||S.bsSets.length<2) S.bsSets=JSON.parse(JSON.stringify(EX_BSSETS));
+if(!(S.bsSet>=0&&S.bsSet<S.bsSets.length)) S.bsSet=0;
+bsLoadEditors();
+
+/* ---------- stop ---------- */
+let stopUsed=[];
+function stopDraw(){ const skip=new Set(S.skip.toUpperCase().replace(/[^A-Z]/g,"").split(""));
+  const pool="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").filter(l=>!skip.has(l)&&!stopUsed.includes(l));
+  if(!pool.length){$("#stopLetter").textContent="—";$("#stopUsed").textContent="Todas as letras já saíram.";return false;}
+  const l=pool[Math.floor(Math.random()*pool.length)]; stopUsed.push(l); $("#stopLetter").textContent=l; $("#stopUsed").textContent="Já saíram: "+stopUsed.join(" "); return true; }
+$("#stopDraw").onclick=stopDraw;
+$("#stopTimer").onclick=()=>{ if(stopDraw()){ tStop(); tLeft=+$("#timerPreset").value; tStart(); } };
+$("#stopReset").onclick=()=>{stopUsed=[];$("#stopUsed").textContent="";$("#stopLetter").textContent="?";};
+function paintCats(){ $("#stopCats").textContent=S.cats.split("\n").map(s=>s.trim()).filter(Boolean).join("  ·  "); }
+$("#stopCatsIn").value=S.cats; $("#stopCatsIn").oninput=e=>{S.cats=e.target.value;save();paintCats();};
+$("#stopSkip").value=S.skip; $("#stopSkip").oninput=e=>{S.skip=e.target.value;save();};
+
+/* ---------- bingo ---------- */
+const ONES=["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen"];
+const TENS=["","","twenty","thirty","forty","fifty","sixty","seventy","eighty","ninety"];
+const spell=n=>n===100?"one hundred":n<20?ONES[n]:TENS[Math.floor(n/10)]+(n%10?"-"+ONES[n%10]:"");
+/* As 11 cores básicas */
+const BCOLORS=[["red","#e53935"],["orange","#fb8c00"],["yellow","#fdd835"],["green","#43a047"],["blue","#1e88e5"],["purple","#8e24aa"],
+  ["pink","#f48fb1"],["brown","#795548"],["black","#000000"],["white","#ffffff"],["gray","#9e9e9e"]];
+const BMODES={colors:1,num:1};
+if(!BMODES[S.bingoMode]) S.bingoMode="colors";
+/* Estado salvo: sorteados por modo e os 30 números da rodada. */
+if(!S.bingo||typeof S.bingo!=="object") S.bingo={colors:[],num:[],pool:[]};
+function newPool(){ const all=[...Array(101)].map((_,i)=>i).sort(()=>Math.random()-.5); S.bingo.pool=all.slice(0,30).sort((a,b)=>a-b); }
+if(!Array.isArray(S.bingo.pool)||S.bingo.pool.length!==30) newPool();
+const bingoItems=()=>S.bingoMode==="colors"?BCOLORS.map(c=>c[0]):S.bingo.pool.map(String);
+const drawn=()=>S.bingo[S.bingoMode];
+const hexOf=name=>(BCOLORS.find(c=>c[0]===name)||[])[1];
+function renderBingo(){
+  const b=$("#bingoBoard"), d=drawn(), colors=S.bingoMode==="colors";
+  b.className="bingo-board "+(colors?"colors":"nums");
+  b.innerHTML=bingoItems().map(x=>colors
+    ?`<div class="cell ${d.includes(x)?"on":""}"><span class="sw" style="background:${hexOf(x)}"></span><span class="lbl">${x}</span></div>`
+    :`<div class="cell ${d.includes(x)?"on":""}">${x}</div>`).join("");
+  const last=d[d.length-1];
+  if(last!=null) fxApply("bingo",last,b.children[bingoItems().indexOf(last)]);
+  $("#bingoSwatch").innerHTML=last&&colors?`<span class="sw" style="display:block;background:${hexOf(last)}"></span>`:"";
+  $("#bingoNow").textContent=last??"—"; $("#bingoNow").hidden=false;
+  $("#bingoSpell").textContent=last&&!colors?spell(+last):"";
+  $("#bingoCount").textContent=`${d.length} de ${bingoItems().length} sorteados`;
+}
+$("#bingoDraw").onclick=()=>{ const left=bingoItems().filter(x=>!drawn().includes(x)); if(!left.length)return; const x=left[Math.floor(Math.random()*left.length)]; drawn().push(x); fxMark("bingo",x); save(); renderBingo(); };
+$("#bingoMode").value=S.bingoMode; $("#bingoMode").onchange=e=>{S.bingoMode=e.target.value; save(); renderBingo();};
+function bingoReset(){ S.bingo[S.bingoMode]=[]; if(S.bingoMode==="num") newPool(); save(); renderBingo(); }
+
+/* ---------- tic tac toe 5x5 com perguntas ---------- */
+/* Cada time tem um símbolo. Ao marcar, conta a sequência que passa pela casa em cada direção:
+   formar 3 em linha dá os pontos de "3", crescer para 4 dá os de "4", para 5 dá os de "5". */
+const TN=5;
+const SYMS=[["losango",'<polygon points="50,4 96,50 50,96 4,50"/>'],["círculo",'<circle cx="50" cy="50" r="44"/>'],
+  ["quadrado",'<rect x="8" y="8" width="84" height="84" rx="6"/>'],["triângulo",'<polygon points="50,6 96,92 4,92"/>'],
+  ["estrela",'<polygon points="50,4 62,38 98,38 69,59 80,94 50,73 20,94 31,59 2,38 38,38"/>'],["cruz",'<path d="M36 6h28v30h30v28H64v30H36V64H6V36h30z"/>']];
+function symSvg(i,cls){ return `<svg viewBox="0 0 100 100" class="sym ${cls||""}" style="fill:${COLORS[i%COLORS.length]}" role="img" aria-label="${SYMS[i%SYMS.length][0]}">${SYMS[i%SYMS.length][1]}</svg>`; }
+if(!S.ttt||!Array.isArray(S.ttt.cells)||S.ttt.cells.length!==TN*TN) S.ttt={cells:Array(TN*TN).fill(null),moves:[]};
+let tPhase="idle", tTeam=null, tQueue=[], tCur=null;
+const DIRS=[[0,1],[1,0],[1,1],[1,-1]];
+function runAt(i,t,dr,dc){ const r=Math.floor(i/TN),c=i%TN, cells=[i];
+  for(const s of [1,-1]){ let rr=r+dr*s,cc=c+dc*s; while(rr>=0&&rr<TN&&cc>=0&&cc<TN&&S.ttt.cells[rr*TN+cc]===t){cells.push(rr*TN+cc); rr+=dr*s; cc+=dc*s;} }
+  return cells; }
+function lineCells(){ const on=new Set(); S.ttt.cells.forEach((t,i)=>{ if(t==null)return; DIRS.forEach(([dr,dc])=>{ const run=runAt(i,t,dr,dc); if(run.length>=3) run.forEach(x=>on.add(x)); }); }); return on; }
+function tStatus(msg,cls){ $("#tttStatus").className="status"+(cls?" "+cls:""); $("#tttStatus").innerHTML=msg; }
+function renderTTT(){
+  const g=$("#ttt"), on=lineCells(); g.innerHTML=""; g.classList.toggle("placing",tPhase==="place");
+  S.ttt.cells.forEach((t,i)=>{ const b=document.createElement("button");
+    b.innerHTML=t==null?`<span class="num">${i+1}</span>`:symSvg(t); b.className=on.has(i)?"line":"";
+    b.setAttribute("aria-label","Casa "+(i+1)); b.disabled=t!=null||tPhase!=="place"; b.onclick=()=>tPlace(i); fxApply("ttt",i,b); g.appendChild(b); });
+}
+function renderPick(){
+  const p=$("#tPick"); p.hidden=!(tPhase==="revealed"||tPhase==="place");
+  p.innerHTML='<span class="muted">Quem acertou?</span>'+S.teams.map((t,i)=>`<button data-t="${i}" class="${tTeam===i?"on":""}">${symSvg(i)} ${t.n.replace(/</g,"&lt;")}</button>`).join("")+'<button data-t="none" class="ghost">Ninguém</button>';
+  p.querySelectorAll("button").forEach(b=>b.onclick=()=>{
+    if(b.dataset.t==="none"){ tPhase="idle"; tTeam=null; tStatus("Ninguém marca. Próxima pergunta!"); }
+    else { tTeam=+b.dataset.t; tPhase="place"; tStatus(`${symSvg(tTeam)} ${S.teams[tTeam].n.replace(/</g,"&lt;")}: escolham o número da casa!`); }
+    renderPick(); renderTTT(); });
+}
+function fillTeamSelects(){ $("#tttLegend").innerHTML=S.teams.map((t,i)=>`<div>${symSvg(i)} ${t.n.replace(/</g,"&lt;")}</div>`).join(""); renderPick(); renderTTT(); }
+function tNext(){ const all=parseQ(); if(!all.length){ $("#tq").textContent="Clique em “Editar listas” e adicione perguntas."; return; }
+  if(!tQueue.length) tQueue=all.map((_,i)=>i).sort(()=>Math.random()-.5);
+  tCur=all[tQueue.pop()]; $("#tq").textContent=tCur.q; $("#ta").textContent=tCur.a||"(sem resposta cadastrada)"; $("#ta").hidden=true;
+  tPhase="question"; tTeam=null; tStatus("Todos os times podem responder!"); renderPick(); renderTTT(); }
+function tReveal(){ if(!tCur||tPhase==="idle")return; $("#ta").hidden=false; if(tPhase==="question"){ tPhase="revealed"; tStatus("Quem acertou?"); } renderPick(); }
+function tPlace(i){
+  if(tPhase!=="place"||tTeam==null||S.ttt.cells[i]!=null)return;
+  const t=tTeam; S.ttt.cells[i]=t; fxMark("ttt",i); let pts=0; const made=[];
+  const val=n=>+$("#tttP"+n).value||0;
+  DIRS.forEach(([dr,dc])=>{ const n=Math.min(runAt(i,t,dr,dc).length,5); if(n>=3){ pts+=val(n); made.push(n); } });
+  S.ttt.moves.push({i,t,pts}); save();
+  if(pts) award(t,pts,"sequência de "+made.join(" e "));
+  tPhase="idle"; tTeam=null; renderPick(); renderTTT();
+  const nm=`${symSvg(t)} ${S.teams[t].n.replace(/</g,"&lt;")}`;
+  if(S.ttt.cells.every(x=>x!=null)) tStatus(`${nm}${pts?` +${pts}!`:""} Tabuleiro completo, fim de jogo!`,"win");
+  else if(pts) tStatus(`${nm} fez ${made.map(n=>n+" em linha").join(" e ")}: +${pts}!`,"win");
+  else tStatus(`${nm} marcou a casa ${i+1}. Próxima pergunta!`);
+}
+function tttReset(){ S.ttt={cells:Array(TN*TN).fill(null),moves:[]}; save(); tPhase="idle"; tTeam=null; tCur=null;
+  $("#tq").textContent="Clique em “Nova pergunta”"; $("#ta").hidden=true; tStatus(""); renderPick(); renderTTT(); }
+function countQ(){ $("#qCount").textContent=`${parseQ().length} perguntas · ${tQueue.length} ainda não sorteadas nesta rodada`; }
+$("#qList").value=S.q; $("#qList").oninput=e=>{S.q=e.target.value; tQueue=[]; save(); countQ();};
+$("#tqNext").onclick=()=>{tNext(); countQ();}; $("#tqShow").onclick=tReveal;
+$("#tttUndo").onclick=()=>{ const m=S.ttt.moves.pop(); if(!m)return; S.ttt.cells[m.i]=null; save(); if(m.pts) award(m.t,-m.pts,"desfazer jogada");
+  tStatus(`Jogada na casa ${m.i+1} desfeita.`); renderTTT(); };
+
+/* ---------- hangman ---------- */
+let hWord="",hHint="",hGuess=new Set(),hWrong=0,hOver=false,hShown=false;
+function hangStart(w,hint){ hWord=w.toUpperCase().trim(); hHint=hint||""; hGuess=new Set(); hWrong=0; hOver=false; hShown=false; renderHang(); }
+function renderHang(){
+  const letters=hWord.replace(/[^A-Z]/g,"");
+  $("#hangSlots").innerHTML=hWord?hWord.split("").map(ch=>ch===" "?'<span class="space"> </span>':/[A-Z]/.test(ch)?`<span>${hGuess.has(ch)||hShown?ch:"&nbsp;"}</span>`:`<span>${ch}</span>`).join(""):'<span class="space muted small" style="font-size:18px">Escolha uma palavra ao lado</span>';
+  $("#hangHint").textContent=hHint?"Hint: "+hHint:"";
+  $$(".hang .part").forEach((p,i)=>p.classList.toggle("on",i<hWrong));
+  const k=$("#hangKeys"); k.innerHTML="";
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(L=>{const b=document.createElement("button"); b.textContent=L;
+    if(hGuess.has(L)){b.disabled=true; if(letters.includes(L))b.className="good";}
+    if(!hWord||hOver)b.disabled=true;
+    b.onclick=()=>guess(L); fxApply("hang",L,b); k.appendChild(b);});
+}
+function guess(L){ if(hOver||!hWord||hGuess.has(L))return; hGuess.add(L); fxMark("hang",L); const letters=hWord.replace(/[^A-Z]/g,"");
+  if(!letters.includes(L)) hWrong++;
+  if([...letters].every(c=>hGuess.has(c))){ hOver=true; award(S.active,+$("#hangPts").value||0,"forca"); $("#hangStatus").className="status win"; $("#hangStatus").textContent=`${S.teams[S.active].n} acertou!`; }
+  else if(hWrong>=6){ hOver=true; $("#hangStatus").className="status lose"; $("#hangStatus").textContent="Enforcado! Ninguém pontua."; }
+  else $("#hangStatus").textContent="";
+  renderHang(); }
+document.addEventListener("keydown",e=>{ if(S.tab!=="hang"||e.target.closest("input,textarea,select"))return; const L=e.key.toUpperCase(); if(/^[A-Z]$/.test(L))guess(L); });
+$("#hangRandom").onclick=()=>{ const list=S.hangWords.split("\n").map(l=>l.trim()).filter(Boolean); if(!list.length)return; const [w,...h]=list[Math.floor(Math.random()*list.length)].split("|"); $("#hangStatus").textContent=""; hangStart(w,h.join("|").trim()); };
+$("#hangUse").onclick=()=>{ const v=$("#hangSecret").value; if(!v.trim())return; $("#hangSecret").value=""; $("#hangStatus").textContent=""; hangStart(v,""); };
+$("#hangReveal").onclick=()=>{ if(!hWord)return; hShown=true; if(!hOver){hOver=true; $("#hangStatus").className="status"; $("#hangStatus").textContent="Palavra revelada.";} renderHang(); };
+$("#hangWords").value=S.hangWords; $("#hangWords").oninput=e=>{S.hangWords=e.target.value;save();};
+
+/* ---------- conteúdo padrão ---------- */
+function loadContentInputs(){ $("#qList").value=S.q; bsLoadEditors(); $("#stopCatsIn").value=S.cats; $("#stopSkip").value=S.skip; $("#hangWords").value=S.hangWords; }
+function restoreContent(){ Object.assign(S,content()); save(); loadContentInputs(); tQueue=[]; countQ(); renderBS(); paintCats(); renderBingo(); }
+
+/* ---------- modo edição ---------- */
+$("#editToggle").onclick=()=>{ const on=document.body.classList.toggle("editing"); $("#editToggle").setAttribute("aria-pressed",on); $("#editToggle").textContent=on?"Fechar edição":"Editar listas";
+  if(!on&&peek){ peek=false; $("#shipPeek").textContent="Espiar tabuleiro"; } renderBS(); };
+
+/* ---------- boot ---------- */
+rebind(); if(!S.bs||!Array.isArray(S.bs.cells)||S.bs.cells.length!==BN*BN) bsNewGame();
+if(S.bs.set==null) S.bs.set=0;
+/* v11: corações saíram do jogo; partidas salvas antes trocam Heart por bomba na água. */
+S.bs.cells.forEach(c=>{ if(c.k==="heart") c.k=c.exp?"safe":"wb"; }); if(S.bs.phase==="repair") S.bs.phase=S.bs.prevPhase||"pick";
+renderTeams(); showTab(S.tab); tPaint(); renderBS(); countQ(); paintCats(); renderBingo(); renderTTT(); renderHang();
+})();
+</script>
+
+<!-- Roleta de alunos: lista salva à parte, então "Restaurar conteúdo padrão" não apaga os nomes -->
+<div class="wheel-ov" id="wheelOv" hidden>
+  <div class="wheel-box" role="dialog" aria-modal="true" aria-labelledby="wheelTitle">
+    <div class="wheel-head"><h2 id="wheelTitle">Sortear aluno</h2><button id="wheelClose" class="ghost" aria-label="Fechar">✕</button></div>
+    <div class="wheel-name" id="wheelName">?</div>
+    <div class="row" style="justify-content:center">
+      <button class="primary" id="wheelSpin">Girar 🎡</button>
+      <label style="display:flex;gap:6px;align-items:center;margin:0;text-transform:none;letter-spacing:0;font-size:14px"><input type="checkbox" id="wheelNoRep" style="width:auto" checked> não repetir</label>
+      <button id="wheelRestart" class="ghost">Reiniciar sorteio</button>
+      <span class="muted small" id="wheelCount"></span>
+    </div>
+    <div class="wheel-used" id="wheelUsed"></div>
+    <div><label for="wheelList">Alunos (um por linha)</label><textarea id="wheelList" placeholder="Ana&#10;Bruno&#10;Carla"></textarea></div>
+  </div>
+</div>
+<script>
+(function(){
+const $=s=>document.querySelector(s), WK="gameday-alunos";
+let W={list:"",used:[],noRep:true}; try{Object.assign(W,JSON.parse(localStorage.getItem(WK)||"{}"))}catch(e){}
+const save=()=>{try{localStorage.setItem(WK,JSON.stringify(W))}catch(e){}};
+const names=()=>W.list.split("\n").map(x=>x.trim()).filter(Boolean);
+const pool=()=>{const n=names(); return W.noRep?n.filter(x=>!W.used.includes(x)):n;};
+let spinning=false, ac=null;
+function tick(f,d){ try{ ac=ac||new (window.AudioContext||window.webkitAudioContext)(); const o=ac.createOscillator(),g=ac.createGain(); o.frequency.value=f; o.connect(g); g.connect(ac.destination); g.gain.setValueAtTime(.12,ac.currentTime); g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+d); o.start(); o.stop(ac.currentTime+d);}catch(e){} }
+function paint(){
+  const n=names(), p=pool();
+  $("#wheelCount").textContent=n.length? (W.noRep? p.length+" de "+n.length+" ainda não sorteados" : n.length+" alunos") : "Adicione os nomes abaixo";
+  $("#wheelUsed").innerHTML=W.noRep? W.used.filter(x=>n.includes(x)).map(x=>"<span></span>").join("") : "";
+  [...$("#wheelUsed").children].forEach((el,i)=>el.textContent=W.used.filter(x=>n.includes(x))[i]);
+  $("#wheelSpin").disabled=spinning||!p.length;
+  $("#wheelNoRep").checked=W.noRep;
+}
+function spin(){
+  const p=pool(); if(spinning||!p.length) return;
+  spinning=true; paint();
+  const el=$("#wheelName"), win=p[Math.floor(Math.random()*p.length)], all=names();
+  el.classList.remove("win"); el.classList.add("spin");
+  let delay=50, i=Math.floor(Math.random()*all.length);
+  const step=()=>{
+    if(delay>380){ el.textContent=win; el.classList.remove("spin"); void el.offsetWidth; el.classList.add("win");
+      tick(660,.15); setTimeout(()=>tick(990,.3),140);
+      if(W.noRep&&!W.used.includes(win)) W.used.push(win); save(); spinning=false; paint(); return; }
+    i=(i+1)%all.length; el.textContent=all[i]; tick(440,.04); delay*=1.12; setTimeout(step,delay);
+  };
+  step();
+}
+const open=()=>{ $("#wheelList").value=W.list; $("#wheelOv").hidden=false; paint(); $("#wheelSpin").focus(); };
+const close=()=>{ if(!spinning) $("#wheelOv").hidden=true; };
+$("#wheelOpen").onclick=open; $("#wheelClose").onclick=close;
+$("#wheelOv").addEventListener("click",e=>{ if(e.target.id==="wheelOv") close(); });
+window.addEventListener("keydown",e=>{ if($("#wheelOv").hidden) return; e.stopPropagation(); if(e.key==="Escape") close(); if(e.key===" "&&document.activeElement.tagName!=="TEXTAREA"){e.preventDefault(); spin();} },true);
+$("#wheelSpin").onclick=spin;
+$("#wheelList").oninput=e=>{ W.list=e.target.value; save(); paint(); };
+$("#wheelNoRep").onchange=e=>{ W.noRep=e.target.checked; save(); paint(); };
+$("#wheelRestart").onclick=()=>{ W.used=[]; $("#wheelName").textContent="?"; $("#wheelName").classList.remove("win"); save(); paint(); };
+})();
+</script>
+
+<!-- Pódio: lê o placar salvo e revela 3º, 2º e 1º lugar em sequência -->
+<div class="pod-ov" id="podOv" hidden role="dialog" aria-modal="true" aria-labelledby="podTitle">
+  <canvas id="podFx"></canvas>
+  <h2 id="podTitle">🏆 Winners!</h2>
+  <button class="ghost pod-close" id="podClose" aria-label="Fechar pódio">✕</button>
+  <div class="pod-rest" id="podRest"></div>
+  <div class="pod-stage" id="podStage"></div>
+</div>
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const COLORS=["#ff6b57","#4fb3c8","#5fd38d","#ffc93c","#b98cff","#ff8fc7"];
+const MEDAL={1:"1º",2:"2º",3:"3º"};
+let timers=[], raf=null, ac=null;
+function note(f,t,d){ try{ ac=ac||new (window.AudioContext||window.webkitAudioContext)(); const o=ac.createOscillator(),g=ac.createGain(); o.type="triangle"; o.frequency.value=f; o.connect(g); g.connect(ac.destination); const s=ac.currentTime+t; g.gain.setValueAtTime(.0001,s); g.gain.exponentialRampToValueAtTime(.2,s+.02); g.gain.exponentialRampToValueAtTime(.0001,s+d); o.start(s); o.stop(s+d+.05);}catch(e){} }
+const drum=()=>note(196,0,.18);
+const fanfare=()=>[[523,0,.18],[659,.18,.18],[784,.36,.18],[1047,.56,.7]].forEach(a=>note(...a));
+function teams(){ let S={}; try{S=JSON.parse(localStorage.getItem("gameday-v1")||"{}")}catch(e){}
+  return (S.teams||[]).map((t,i)=>({n:t.n||("Team "+(i+1)),s:+t.s||0,c:COLORS[i%COLORS.length]})); }
+function ranked(){ const t=teams().sort((a,b)=>b.s-a.s); let place=0,last=null;
+  t.forEach(x=>{ if(x.s!==last){place++;last=x.s;} x.p=place; }); return t; }
+function confetti(){
+  const cv=$("#podFx"), cx=cv.getContext("2d"); cv.width=innerWidth; cv.height=innerHeight;
+  const ps=Array.from({length:180},()=>({x:Math.random()*cv.width,y:-20-Math.random()*cv.height*.6,vx:(Math.random()-.5)*3,vy:2+Math.random()*3,r:Math.random()*6.28,vr:(Math.random()-.5)*.3,w:6+Math.random()*8,c:COLORS[Math.floor(Math.random()*COLORS.length)]}));
+  const t0=performance.now();
+  const frame=t=>{ cx.clearRect(0,0,cv.width,cv.height); let alive=false;
+    ps.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.r+=p.vr; if(p.y<cv.height+20)alive=true;
+      cx.save(); cx.translate(p.x,p.y); cx.rotate(p.r); cx.fillStyle=p.c; cx.fillRect(-p.w/2,-p.w/4,p.w,p.w/2); cx.restore(); });
+    if(alive&&t-t0<9000) raf=requestAnimationFrame(frame); else cx.clearRect(0,0,cv.width,cv.height); };
+  raf=requestAnimationFrame(frame);
+}
+function open(){
+  const r=ranked(), top=r.filter(x=>x.p<=3);
+  /* um degrau por colocação; empate divide o mesmo degrau e o próximo time fica no degrau seguinte */
+  const byPlace={}; top.forEach(x=>(byPlace[x.p]=byPlace[x.p]||[]).push(x));
+  const places=Object.keys(byPlace).map(Number).sort((a,b)=>a-b).slice(0,3);
+  const order=[places[1],places[0],places[2]].filter(x=>x!==undefined);
+  $("#podStage").innerHTML=""; 
+  order.forEach(pl=>{ const g=byPlace[pl], tier=places.indexOf(pl)+1;
+    const col=document.createElement("div"); col.className="pod-col p"+tier; col.dataset.place=pl;
+    const nm=document.createElement("div"); nm.className="pod-name"; nm.textContent=g.map(x=>x.n).join(" & ");
+    const pts=document.createElement("div"); pts.className="pod-pts"; pts.textContent=g[0].s+" pts";
+    const bar=document.createElement("div"); bar.className="pod-bar"; bar.style.background=g.length>1?"linear-gradient(90deg,"+g.map((x,k)=>x.c+" "+(k*100/g.length)+"% "+((k+1)*100/g.length)+"%").join(",")+")":g[0].c; bar.textContent=MEDAL[pl]||pl+"º";
+    col.append(nm,pts,bar); $("#podStage").append(col); });
+  const rest=r.filter(x=>x.p>3);
+  $("#podRest").textContent=rest.length? "Também jogaram: "+rest.map(x=>x.n+" ("+x.s+")").join(" · ") : "";
+  $("#podOv").hidden=false;
+  const cols=[...$("#podStage").children].sort((a,b)=>b.dataset.place-a.dataset.place);
+  cols.forEach((c,i)=>timers.push(setTimeout(()=>{ c.classList.add("show"); if(i===cols.length-1){fanfare(); confetti();} else drum(); },700+i*1400)));
+}
+function close(){ timers.forEach(clearTimeout); timers=[]; cancelAnimationFrame(raf); $("#podOv").hidden=true; }
+$("#podiumOpen").onclick=open; $("#podClose").onclick=close;
+window.addEventListener("keydown",e=>{ if(!$("#podOv").hidden&&e.key==="Escape"){ e.stopPropagation(); close(); } },true);
+})();
+</script>
+</body>
+</html>
