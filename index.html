@@ -60,6 +60,9 @@ header .sub{color:var(--muted);font-size:14px}
 .team .name{background:transparent;border:0;padding:0 0 0 8px;font-family:var(--display);font-size:22px;width:100%}
 .team .name:focus{background:var(--board)}
 .team .score{font-family:var(--display);font-size:clamp(48px,6vw,72px);line-height:1;padding-left:8px;font-variant-numeric:tabular-nums}
+/* Pontos escondidos: o placar fica embaçado até o professor mostrar ou o pódio revelar o 1º lugar */
+body.scores-hidden .team .score{filter:blur(16px);user-select:none}
+body.scores-hidden .team .crown,body.scores-hidden #log{visibility:hidden}
 .team .crown{position:absolute;top:10px;right:12px;font-size:12px;font-weight:800;color:#2a1e00;background:var(--accent);border-radius:99px;padding:2px 8px}
 .team .btns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding-left:8px}
 .team .btns button{padding:.4em 0;font-family:var(--mono)}
@@ -243,6 +246,7 @@ header>div:first-child{flex:1 1 320px;min-width:0}
       </div>
       <button id="wheelOpen" class="ghost" title="Sortear aluno (roleta)" aria-label="Sortear aluno">🎡</button>
       <button id="editToggle" class="ghost" aria-pressed="false">Editar listas</button>
+      <button id="scoreHide" class="ghost">🙈 Esconder pontos</button>
       <button id="fullscreen" class="ghost">Tela cheia</button>
     </div>
   </header>
@@ -961,6 +965,10 @@ $("#editToggle").onclick=()=>{ const on=document.body.classList.toggle("editing"
   if(!on&&peek){ peek=false; $("#shipPeek").textContent="Espiar tabuleiro"; } renderBS(); };
 
 /* ---------- boot ---------- */
+function paintHide(){ document.body.classList.toggle("scores-hidden",!!S.hideScores); $("#scoreHide").textContent=S.hideScores?"👁 Mostrar pontos":"🙈 Esconder pontos"; }
+$("#scoreHide").onclick=()=>{ S.hideScores=!S.hideScores; save(); paintHide(); };
+window.addEventListener("gameday:reveal",()=>{ S.hideScores=false; save(); paintHide(); });
+paintHide();
 rebind(); if(!S.bs||!Array.isArray(S.bs.cells)||S.bs.cells.length!==BN*BN) bsNewGame();
 if(S.bs.set==null) S.bs.set=0;
 /* v11: corações saíram do jogo; partidas salvas antes trocam Heart por bomba na água. */
@@ -1075,7 +1083,7 @@ function open(){
   $("#podRest").textContent=rest.length? "Também jogaram: "+rest.map(x=>x.n+" ("+x.s+")").join(" · ") : "";
   $("#podOv").hidden=false;
   const cols=[...$("#podStage").children].sort((a,b)=>b.dataset.place-a.dataset.place);
-  cols.forEach((c,i)=>timers.push(setTimeout(()=>{ c.classList.add("show"); if(i===cols.length-1){fanfare(); confetti();} else drum(); },700+i*1400)));
+  cols.forEach((c,i)=>timers.push(setTimeout(()=>{ c.classList.add("show"); if(i===cols.length-1){fanfare(); confetti(); window.dispatchEvent(new Event("gameday:reveal"));} else drum(); },700+i*1400)));
 }
 function close(){ timers.forEach(clearTimeout); timers=[]; cancelAnimationFrame(raf); $("#podOv").hidden=true; }
 $("#podiumOpen").onclick=open; $("#podClose").onclick=close;
